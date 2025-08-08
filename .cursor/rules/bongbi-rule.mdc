@@ -1,0 +1,30 @@
+---
+description: "Bongbi SaaS v2.0 핵심 컨텍스트 부트스트랩"
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+Bongbi SaaS v2.0 (모노레포)  
+루트: C:\AutomationHub\Bongbi-SaaS\Bong-bi  
+구성: bongbi-api(FastAPI), bongbi-web(Vite+React)  
+
+bongbi-api 주요 파일  
+- app/main.py : FastAPI 실행  
+- app/api/calculate_router.py : /calculate/*, /health  
+- app/api/schemas.py : Rod/Plate/Scrap 스키마  
+- core_logic/* : 형상별 계산 모듈 (rod, plate, scrap, utils)  
+- config/column_master.json : 단일 진실원(컬럼 정의)  
+
+규칙  
+- 모든 컬럼/키/타입은 column_master.json 기준  
+- 밀도 입력 단위: kg/m³ → 내부 g/cm³ 변환  
+- 스크랩 계산: actualProductWeight>0, scrapUnitPrice>0, recoveryRatio>0 일 때만  
+- 들여쓰기: Space 4  
+
+실행  
+- 백엔드: (CWD=bongbi-api) .\venv\Scripts\uvicorn.exe app.main:app --reload  
+- 프론트: (CWD=bongbi-web) npm run dev  
+- Swagger: http://127.0.0.1:8000/docs  
+
+명령 작성 시 “column_master.json 기준” 반드시 포함  

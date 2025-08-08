@@ -1,3 +1,3 @@
 Set-Location "$PSScriptRoot\bongbi-api"
-.\venv\Scripts\activate
-uvicorn app.main:app --reload
+. .\venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload
