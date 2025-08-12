@@ -40,6 +40,8 @@ interface CalculationResults {
   wastage: number;
   costPerPiece: number;
   totalWeight: number;
+  realCost?: number;
+  scrapWeight?: number;
 }
 
 interface FormData {
@@ -295,8 +297,13 @@ export const ResultsPanel = ({
     }
   }
 
-  const pricePerBar = results.materialCost / results.totalBarsNeeded;
-  const pricePerProduct = results.costPerPiece;
+  // 봉재당 단가는 원재료 기준으로 고정 (스크랩과 무관)
+  const pricePerBar = results.materialCost / Math.max(1, results.totalBarsNeeded);
+  // 제품당 가격: 원가 기준과 실제(스크랩 반영 후) 나란히 표기
+  const baseUnitPrice = results.costPerPiece;
+  const realUnitPrice = results.realCost && quantity > 0 ? results.realCost / quantity : undefined;
+  // 스크랩 계산 활성 상태: 스크랩 중량과 절약액이 유효할 때만 비교 표기
+  const isScrapActive = (results.scrapWeight ?? 0) > 0 && (results.scrapSavings ?? 0) > 0;
 
   const grade = getUtilizationGrade(results.utilizationRate);
 
@@ -327,7 +334,7 @@ export const ResultsPanel = ({
                   {materialType === "rod" && (
                     <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">필요 봉재</th>
                   )}
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">단가</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">제품당 가격</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-blue-700 bg-blue-50">총 재료비</th>
                 </tr>
               </thead>
@@ -356,10 +363,17 @@ export const ResultsPanel = ({
                     </td>
                   )}
                   <td className="px-4 py-4 text-right text-sm text-gray-900 font-mono">
-                    {Math.round(results.costPerPiece).toLocaleString()}원
+                    {isScrapActive && realUnitPrice !== undefined ? (
+                      <div className="space-y-0.5">
+                        <div className="line-through text-gray-500">{Math.round(baseUnitPrice).toLocaleString()}원</div>
+                        <div className="text-green-700 font-semibold">{Math.round(realUnitPrice).toLocaleString()}원</div>
+                      </div>
+                    ) : (
+                      <div>{Math.round(baseUnitPrice).toLocaleString()}원</div>
+                    )}
                   </td>
                   <td className="px-4 py-4 text-right text-lg font-bold text-blue-700 font-mono bg-blue-50">
-                    {results.realCost ? (
+                    {isScrapActive && results.realCost ? (
                       <div>
                         <div className="text-sm line-through text-gray-500">
                           {Math.round(results.materialCost).toLocaleString()}원
@@ -498,7 +512,7 @@ export const ResultsPanel = ({
                   <div className="space-y-3">
                     <div className="text-center">
                       <div className="text-xs text-blue-700 mb-1">
-                        봉재당 가격
+                        봉재당 가격 (원가 기준)
                       </div>
                       <div className="text-lg font-semibold text-blue-700">
                         {formatCurrency(pricePerBar)}
@@ -509,9 +523,14 @@ export const ResultsPanel = ({
                       <div className="text-xs text-blue-700 mb-1">
                         제품당 가격
                       </div>
-                      <div className="text-sm font-semibold text-blue-700">
-                        {formatCurrency(pricePerProduct)}
-                      </div>
+                      {isScrapActive && realUnitPrice !== undefined ? (
+                        <div className="text-sm font-semibold text-blue-700 space-y-0.5">
+                          <div className="line-through text-gray-500">{formatCurrency(baseUnitPrice)}</div>
+                          <div className="text-green-700">{formatCurrency(realUnitPrice)}</div>
+                        </div>
+                      ) : (
+                        <div className="text-sm font-semibold text-blue-700">{formatCurrency(baseUnitPrice)}</div>
+                      )}
                     </div>
                   </div>
                 </div>

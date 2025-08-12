@@ -6,9 +6,18 @@ import { SavedOrdersSection } from "@/components/calculator/SavedOrdersSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Save, Download, Share } from "lucide-react";
+import { Save, Download, Share, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { calculateRodMaterial, calculatePlateMaterial, getMaterialProperties } from "@/lib/materialCalculations";
+// API 클라이언트로 대체
+import {
+  calculateRodMaterial,
+  calculatePlateMaterial,
+  getApiInfo,
+  convertFormToRodRequest,
+  convertFormToPlateRequest,
+  type RodCalculateResponse,
+  type PlateCalculateResponse,
+} from "@/lib/api";
 
 interface MaterialFormData {
   productName: string;
@@ -45,11 +54,14 @@ interface CalculationResults {
   wastage: number;
   costPerPiece: number;
   totalWeight: number;
+  realCost?: number;
+  scrapWeight?: number;
 }
 
 const Calculator = () => {
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<"rod" | "sheet">("rod");
   const [currentFormData, setCurrentFormData] =
     useState<MaterialFormData | null>(null);
@@ -98,15 +110,32 @@ const Calculator = () => {
     };
   }, []);
 
+  // API 연결 상태 확인
+  useEffect(() => {
+    const checkApiConnection = async () => {
+      try {
+        await getApiInfo();
+        setApiConnected(true);
+        toast.success("백엔드 서버에 성공적으로 연결되었습니다!");
+      } catch (error) {
+        setApiConnected(false);
+        toast.error("백엔드 서버 연결에 실패했습니다. 서버가 실행 중인지 확인해주세요.");
+        console.error("API 연결 오류:", error);
+      }
+    };
+
+    checkApiConnection();
+  }, []);
+
   // Note: Temporary orders are now managed by SavedOrdersSection with localStorage
   // and will persist during browser session until manually deleted
 
   // Use dynamic material data from form inputs
 
-  const calculateMaterials = (data: MaterialFormData) => {
+  const calculateMaterials = async (data: MaterialFormData) => {
     setCurrentFormData(data);
 
-    // Check required fields based on material type
+    // 기본 유효성 검사
     const isRodValid =
       activeTab === "rod" &&
       data.shape &&
@@ -128,91 +157,52 @@ const Calculator = () => {
       return;
     }
 
+    if (apiConnected === false) {
+      toast.error("백엔드 서버에 연결되지 않았습니다.");
+      return;
+    }
+
     setIsCalculating(true);
-
-    // Simulate calculation delay
-    setTimeout(() => {
-      const quantity = parseInt(data.quantity) || 0;
-      const materialDensity = parseFloat(data.materialDensity) || 7.85; // g/cm³
-
+    try {
       if (activeTab === "sheet") {
-        // Plate calculation logic using utility function
-        const thickness = parseFloat(data.plateThickness) || 0;
-        const width = parseFloat(data.plateWidth) || 0;
-        const length = parseFloat(data.plateLength) || 0;
-
-        // Get material properties from form data or defaults
-        const materialProperties = getMaterialProperties(data.materialType);
-        const plateUnitPrice = parseFloat(data.plateUnitPrice) || materialProperties.plateUnitPrice;
-
-        const calculationResults = calculatePlateMaterial({
-          thickness,
-          width,
-          length,
-          quantity,
-          materialDensity,
-          plateUnitPrice,
-        });
-
+        const plateReq = convertFormToPlateRequest(data);
+        const resp: PlateCalculateResponse = await calculatePlateMaterial(plateReq);
+        const calculationResults: CalculationResults = {
+          totalBarsNeeded: 0,
+          standardBarLength: 0,
+          materialCost: resp.totalCost,
+          utilizationRate: resp.utilizationRate,
+          scrapSavings: resp.scrapSavings,
+          wastage: resp.wastage,
+          costPerPiece: resp.unitCost,
+          totalWeight: resp.totalWeight,
+          realCost: resp.realCost,
+        };
         setResults(calculationResults);
-        setIsCalculating(false);
       } else {
-        // Rod calculation logic using utility function
-        const diameter = parseFloat(data.diameter) || 0;
-        const width = data.width ? parseFloat(data.width) : undefined;
-        const height = data.height ? parseFloat(data.height) : undefined;
-        const productLength = parseFloat(data.productLength) || 0;
-        const cuttingLoss = parseFloat(data.cuttingLoss) || 0;
-        const headCut = parseFloat(data.headCut) || 20;
-        const tailCut = parseFloat(data.tailCut) || 250;
-        // Get material properties from form data or defaults
-        const materialProperties = getMaterialProperties(data.materialType);
-        const standardBarLength = parseFloat(data.standardBarLength) || materialProperties.standardBarLength;
-        const materialPrice = parseFloat(data.materialPrice) || materialProperties.barUnitPrice;
-        const productWeight = parseFloat(data.productWeight) || 0;
-        const actualProductWeight = parseFloat(data.actualProductWeight) || 0;
-
-        // 사용자가 스크랩 환산 비율을 직접 입력한 경우에만 사용 (기본값 사용하지 않음)
-        let recoveryRatio = 0;
-        if (data.recoveryRatio && data.recoveryRatio.trim() !== "") {
-          const userRecoveryRatio = parseFloat(data.recoveryRatio);
-          if (!isNaN(userRecoveryRatio) && userRecoveryRatio > 0) {
-            recoveryRatio = userRecoveryRatio;
-          }
-        }
-
-        // 사용자가 스크랩 단가를 직접 입력한 경우에만 사용 (기본값 사용하지 않음)
-        let scrapUnitPrice = 0;
-        if (data.scrapUnitPrice && data.scrapUnitPrice.trim() !== "") {
-          const userScrapPrice = parseFloat(data.scrapUnitPrice);
-          if (!isNaN(userScrapPrice) && userScrapPrice > 0) {
-            scrapUnitPrice = userScrapPrice;
-          }
-        }
-
-        const calculationResults = calculateRodMaterial({
-          shape: data.shape,
-          diameter,
-          width,
-          height,
-          productLength,
-          quantity,
-          cuttingLoss,
-          headCut,
-          tailCut,
-          standardBarLength,
-          materialDensity,
-          materialPrice,
-          recoveryRatio,
-          productWeight: productWeight > 0 ? productWeight : undefined,
-          actualProductWeight: actualProductWeight > 0 ? actualProductWeight : undefined,
-          scrapUnitPrice,
-        });
-
+        const rodReq = convertFormToRodRequest(data);
+        const resp: RodCalculateResponse = await calculateRodMaterial(rodReq);
+        const calculationResults: CalculationResults = {
+          totalBarsNeeded: resp.barsNeeded,
+          standardBarLength: parseFloat(data.standardBarLength) || 0,
+          materialCost: resp.totalCost,
+          utilizationRate: resp.utilizationRate,
+          scrapSavings: resp.scrapSavings,
+          wastage: resp.wastage,
+          costPerPiece: resp.unitCost,
+          totalWeight: resp.totalWeight,
+          realCost: resp.realCost,
+          scrapWeight: (resp as any).scrapWeight,
+        };
         setResults(calculationResults);
-        setIsCalculating(false);
       }
-    }, 300);
+      toast.success("계산이 완료되었습니다!");
+    } catch (error) {
+      console.error("계산 오류:", error);
+      toast.error(`계산 중 오류가 발생했습니다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleSaveOrder = (orderData: any) => {
