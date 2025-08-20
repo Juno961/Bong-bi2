@@ -7,6 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,15 +29,123 @@ import {
   X,
   Calculator,
   Database,
+  Wrench,
+  BarChart3,
+  Construction,
+  HardDrive,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
 } from "lucide-react";
 import { materialDefaults, MaterialDefaults } from "@/data/materialDefaults";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface EditableMaterial extends MaterialDefaults {
   id: string;
   isNew?: boolean;
 }
 
+type SettingsTab = 'defaults' | 'calculation' | 'materials' | 'backup';
+
+// Tab Button Component
+interface TabButtonProps {
+  id: SettingsTab;
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+const TabButton = ({ id, icon, label, active, onClick }: TabButtonProps) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
+      active
+        ? "bg-blue-600 text-white shadow-sm"
+        : "bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+    )}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+// Setting Toggle Component
+interface SettingToggleProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+}
+
+const SettingToggle = ({ icon, title, description, checked, onToggle }: SettingToggleProps) => (
+  <div className="flex items-center justify-between p-4 border rounded-lg bg-white">
+    <div className="flex items-center gap-3">
+      <div className="text-xl">{icon}</div>
+      <div>
+        <div className="font-medium text-gray-900">{title}</div>
+        <div className="text-sm text-gray-600">{description}</div>
+      </div>
+    </div>
+    <Switch checked={checked} onCheckedChange={onToggle} />
+  </div>
+);
+
+// Material Card Component
+interface MaterialCardProps {
+  material: EditableMaterial;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const MaterialCard = ({ material, onEdit, onDelete }: MaterialCardProps) => (
+  <Card className="hover:shadow-md transition-shadow">
+    <CardHeader>
+      <div className="flex justify-between items-start">
+        <CardTitle className="text-lg">{material.material}</CardTitle>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Edit className="h-3 w-3 mr-1" />
+            편집
+          </Button>
+          <Button size="sm" variant="outline" onClick={onDelete} className="text-red-600 hover:text-red-700">
+            <Trash2 className="h-3 w-3 mr-1" />
+            삭제
+          </Button>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600">표준 길이:</span>
+          <span className="font-medium">{material.standard_bar_length}mm</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">밀도:</span>
+          <span className="font-medium">{material.material_density}g/cm³</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">봉재 단가:</span>
+          <span className="font-medium">{material.bar_unit_price.toLocaleString()}원/kg</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">환산비율:</span>
+          <span className="font-medium">{material.default_recovery_ratio}%</span>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const Settings = () => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('defaults');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<EditableMaterial | null>(null);
   // Convert materialDefaults to editable format
   const [materials, setMaterials] = useState<EditableMaterial[]>(
     Object.entries(materialDefaults).map(([key, data]) => ({
@@ -127,6 +243,7 @@ const Settings = () => {
       bar_unit_price: 0,
       plate_unit_price: 0,
       scrap_unit_price: 0,
+      default_recovery_ratio: 100,
       isNew: true,
     };
     const updatedMaterials = [...materials, newMaterial];
@@ -249,312 +366,449 @@ const Settings = () => {
 
 
 
+  // Handle material edit
+  const handleEditMaterial = (material: EditableMaterial) => {
+    setEditingMaterial(material);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveMaterial = () => {
+    if (editingMaterial) {
+      updateMaterial(editingMaterial.id, "material", editingMaterial.material);
+      updateMaterial(editingMaterial.id, "standard_bar_length", editingMaterial.standard_bar_length);
+      updateMaterial(editingMaterial.id, "material_density", editingMaterial.material_density);
+      updateMaterial(editingMaterial.id, "bar_unit_price", editingMaterial.bar_unit_price);
+      updateMaterial(editingMaterial.id, "plate_unit_price", editingMaterial.plate_unit_price);
+      updateMaterial(editingMaterial.id, "scrap_unit_price", editingMaterial.scrap_unit_price);
+      updateMaterial(editingMaterial.id, "default_recovery_ratio", editingMaterial.default_recovery_ratio);
+      
+      toast.success("소재가 성공적으로 저장되었습니다.");
+      setIsEditModalOpen(false);
+      setEditingMaterial(null);
+    }
+  };
+
+  const handleDeleteMaterial = (id: string) => {
+    if (window.confirm("이 소재를 삭제하시겠습니까?")) {
+      deleteMaterial(id);
+      toast.success("소재가 삭제되었습니다.");
+    }
+  };
+
+  // Export/Import functions
+  const exportSettings = () => {
+    const settings = {
+      materials,
+      calculationSettings,
+      defaultValues,
+      exportDate: new Date().toISOString(),
+    };
+    
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bongbi-settings-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    toast.success("설정이 내보내기 되었습니다.");
+  };
+
+  const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const settings = JSON.parse(e.target?.result as string);
+        
+        if (settings.materials) setMaterials(settings.materials);
+        if (settings.calculationSettings) setCalculationSettings(settings.calculationSettings);
+        if (settings.defaultValues) setDefaultValues(settings.defaultValues);
+        
+        toast.success("설정이 가져오기 되었습니다.");
+      } catch (error) {
+        toast.error("설정 파일을 읽는 중 오류가 발생했습니다.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Tab Content Components
+  const DefaultsTab = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Cutting Settings Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              절삭 설정
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>선두 로스 (mm)</Label>
+              <Input 
+                type="number" 
+                value={defaultValues.headCut}
+                onChange={(e) => {
+                  const newValues = {
+                    ...defaultValues,
+                    headCut: parseInt(e.target.value) || 0,
+                  };
+                  updateDefaultValues(newValues);
+                }}
+                className="text-lg"
+                placeholder="20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>후미 로스 (mm)</Label>
+              <Input 
+                type="number" 
+                value={defaultValues.tailCut}
+                onChange={(e) => {
+                  const newValues = {
+                    ...defaultValues,
+                    tailCut: parseInt(e.target.value) || 0,
+                  };
+                  updateDefaultValues(newValues);
+                }}
+                className="text-lg"
+                placeholder="250"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Scrap Settings Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              스크랩 설정
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label>환산 비율 (%)</Label>
+              <Input 
+                type="number" 
+                value={defaultValues.scrapRatio}
+                onChange={(e) => {
+                  const newValues = {
+                    ...defaultValues,
+                    scrapRatio: parseInt(e.target.value) || 0,
+                  };
+                  updateDefaultValues(newValues);
+                }}
+                className="text-lg"
+                placeholder="100"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const CalculationTab = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          계산 옵션
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <SettingToggle
+          icon={<Calculator className="h-5 w-5" />}
+          title="실시간 자동 계산"
+          description="입력 변경 시 즉시 자동으로 계산합니다"
+          checked={calculationSettings.autoCalculate}
+          onToggle={(checked) => updateCalculationSetting('autoCalculate', checked)}
+        />
+        
+        <SettingToggle
+          icon={<HardDrive className="h-5 w-5" />}
+          title="계산 이력 저장"
+          description="모든 계산 내역을 기록으로 보관합니다"
+          checked={calculationSettings.saveHistory}
+          onToggle={(checked) => updateCalculationSetting('saveHistory', checked)}
+        />
+        
+        <SettingToggle
+          icon={<X className="h-5 w-5" />}
+          title="판재 단가 비활성화"
+          description="활성화 시 플레이트 계산에 봉재 가격을 사용합니다"
+          checked={calculationSettings.disablePlatePrice}
+          onToggle={(checked) => updateCalculationSetting('disablePlatePrice', checked)}
+        />
+      </CardContent>
+    </Card>
+  );
+
+  const MaterialsTab = () => (
+    <div className="space-y-6">
+      {/* Action Header */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Construction className="h-5 w-5" />
+          등록된 소재
+        </h3>
+        <Button onClick={addMaterial}>
+          <Plus className="h-4 w-4 mr-2" />
+          소재 추가
+        </Button>
+      </div>
+
+      {/* Material Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {materials.map(material => (
+          <MaterialCard 
+            key={material.id}
+            material={material}
+            onEdit={() => handleEditMaterial(material)}
+            onDelete={() => handleDeleteMaterial(material.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  const BackupTab = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HardDrive className="h-5 w-5" />
+            데이터 백업
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <Button variant="outline" onClick={exportSettings}>
+              <Download className="h-4 w-4 mr-2" />
+              설정 내보내기
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept=".json"
+                onChange={importSettings}
+                style={{ display: 'none' }}
+                id="import-settings"
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => document.getElementById('import-settings')?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                설정 가져오기
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-orange-700">
+            <RotateCcw className="h-5 w-5" />
+            설정 초기화
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-2">
+                모든 설정을 기본값으로 되돌립니다.
+              </p>
+              <p className="text-xs text-red-600">
+                주의: 이 작업은 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <Button onClick={resetToDefaults} variant="outline" className="text-red-600 hover:text-red-700">
+              <RotateCcw className="h-4 w-4 mr-2" />
+              모든 설정 초기화
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
+        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">설정</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">설정</h1>
+          <p className="text-gray-600">
             재료 계산기 기본 설정 및 환경 설정을 구성하세요
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Default Values Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SettingsIcon className="h-5 w-5" />
-                기본값 설정
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="default-head-cut">선두 로스 (mm)</Label>
-                <Input
-                  id="default-head-cut"
-                  type="number"
-                  value={defaultValues.headCut}
-                  onChange={(e) => {
-                    const newValues = {
-                      ...defaultValues,
-                      headCut: parseInt(e.target.value) || 0,
-                    };
-                    updateDefaultValues(newValues);
-                  }}
-                  placeholder="20"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="default-tail-cut">후미 로스 (mm)</Label>
-                <Input
-                  id="default-tail-cut"
-                  type="number"
-                  value={defaultValues.tailCut}
-                  onChange={(e) => {
-                    const newValues = {
-                      ...defaultValues,
-                      tailCut: parseInt(e.target.value) || 0,
-                    };
-                    updateDefaultValues(newValues);
-                  }}
-                  placeholder="250"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="default-scrap">스크랩 환산 비율 (%)</Label>
-                <Input
-                  id="default-scrap"
-                  type="number"
-                  value={defaultValues.scrapRatio}
-                  onChange={(e) => {
-                    const newValues = {
-                      ...defaultValues,
-                      scrapRatio: parseInt(e.target.value) || 0,
-                    };
-                    updateDefaultValues(newValues);
-                  }}
-                  placeholder="100"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Calculation Settings Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                계산 설정
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">실시간 자동 계산</Label>
-                  <p className="text-sm text-muted-foreground">
-                    입력 변경 시 즉시 자동으로 계산합니다. 비활성화하면 '계산하기' 버튼 클릭 시에만 계산됩니다.
-                  </p>
-                </div>
-                <Switch
-                  checked={calculationSettings.autoCalculate}
-                  onCheckedChange={(checked) =>
-                    updateCalculationSetting("autoCalculate", checked)
-                  }
-                />
-              </div>
-
-              <Separator />
-
-
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">계산 이력 저장</Label>
-                  <p className="text-sm text-muted-foreground">
-                    모든 계산 내역을 기록으로 보관합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={calculationSettings.saveHistory}
-                  onCheckedChange={(checked) =>
-                    updateCalculationSetting("saveHistory", checked)
-                  }
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-base">
-                    판재 단가 비활성화
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    활성화 시 플레이트 계산에 봉재 가격을 사용합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={calculationSettings.disablePlatePrice}
-                  onCheckedChange={(checked) =>
-                    updateCalculationSetting("disablePlatePrice", checked)
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
+          <TabButton 
+            id="defaults" 
+            icon={<Wrench className="h-4 w-4" />} 
+            label="기본값" 
+            active={activeTab === 'defaults'}
+            onClick={() => setActiveTab('defaults')}
+          />
+          <TabButton 
+            id="calculation" 
+            icon={<BarChart3 className="h-4 w-4" />} 
+            label="계산" 
+            active={activeTab === 'calculation'}
+            onClick={() => setActiveTab('calculation')}
+          />
+          <TabButton 
+            id="materials" 
+            icon={<Construction className="h-4 w-4" />} 
+            label="소재" 
+            active={activeTab === 'materials'}
+            onClick={() => setActiveTab('materials')}
+          />
+          <TabButton 
+            id="backup" 
+            icon={<HardDrive className="h-4 w-4" />} 
+            label="백업" 
+            active={activeTab === 'backup'}
+            onClick={() => setActiveTab('backup')}
+          />
         </div>
 
-        {/* Material Defaults Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-              소재 기본값 설정
-              </CardTitle>
-              <Button
-                onClick={addMaterial}
-                className="btn-modern rounded-xl"
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-              추가
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>재료명</TableHead>
-                    <TableHead>표준 길이 (mm)</TableHead>
-                    <TableHead>밀도 (g/cm³)</TableHead>
-                    <TableHead>봉재 단가 (₩/kg)</TableHead>
-                    <TableHead
-                      className={
-                        calculationSettings.disablePlatePrice
-                          ? "opacity-50"
-                          : ""
-                      }
-                    >
-                      판재 단가 (₩/kg)
-                    </TableHead>
-                    <TableHead>스크랩 단가 (₩/kg)</TableHead>
-                    <TableHead className="w-16">삭제</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {materials.map((material) => (
-                    <TableRow key={material.id}>
-                      <TableCell className="py-2">
-                        <Input
-                          value={material.material}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "material",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="재료명"
-                          className="h-8 text-sm border-gray-200 focus:border-blue-500"
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          value={material.standard_bar_length}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "standard_bar_length",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          placeholder="3000"
-                          className="h-8 text-sm border-gray-200 focus:border-blue-500"
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={material.material_density}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "material_density",
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
-                          placeholder="7.85"
-                          className="h-8 text-sm border-gray-200 focus:border-blue-500"
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          value={material.bar_unit_price}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "bar_unit_price",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          placeholder="8500"
-                          className="h-8 text-sm border-gray-200 focus:border-blue-500"
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          value={material.plate_unit_price}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "plate_unit_price",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          placeholder="8500"
-                          className={`h-8 text-sm border-gray-200 focus:border-blue-500 ${calculationSettings.disablePlatePrice ? "opacity-50" : ""}`}
-                          disabled={calculationSettings.disablePlatePrice}
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Input
-                          type="number"
-                          value={material.scrap_unit_price}
-                          onChange={(e) =>
-                            updateMaterial(
-                              material.id,
-                              "scrap_unit_price",
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
-                          placeholder="6800"
-                          className="h-8 text-sm border-gray-200 focus:border-blue-500"
-                        />
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteMaterial(material.id)}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+        {/* Tab Content */}
+        {activeTab === 'defaults' && <DefaultsTab />}
+        {activeTab === 'calculation' && <CalculationTab />}
+        {activeTab === 'materials' && <MaterialsTab />}
+        {activeTab === 'backup' && <BackupTab />}
+        {/* Material Edit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                소재 편집 - {editingMaterial?.material}
+              </DialogTitle>
+              <DialogDescription>
+                소재의 상세 정보를 수정할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingMaterial && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 기본 정보 */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">기본 정보</h4>
+                    <div className="space-y-2">
+                      <Label>재료명</Label>
+                      <Input
+                        value={editingMaterial.material}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          material: e.target.value
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>표준 길이 (mm)</Label>
+                      <Input
+                        type="number"
+                        value={editingMaterial.standard_bar_length}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          standard_bar_length: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>밀도 (g/cm³)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editingMaterial.material_density}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          material_density: parseFloat(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                  </div>
 
-            {calculationSettings.disablePlatePrice && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>플레이트 가격 컬럼이 비활성화되었습니다.</strong>{" "}
-                  플레이트 계산 시 봉재 단가가 사용됩니다.
-                </p>
+                  {/* 가격 정보 */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-gray-900">가격 정보</h4>
+                    <div className="space-y-2">
+                      <Label>봉재 단가 (원/kg)</Label>
+                      <Input
+                        type="number"
+                        value={editingMaterial.bar_unit_price}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          bar_unit_price: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>판재 단가 (원/kg)</Label>
+                      <Input
+                        type="number"
+                        value={editingMaterial.plate_unit_price}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          plate_unit_price: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>스크랩 단가 (원/kg)</Label>
+                      <Input
+                        type="number"
+                        value={editingMaterial.scrap_unit_price}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          scrap_unit_price: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>환산비율 (%)</Label>
+                      <Input
+                        type="number"
+                        value={editingMaterial.default_recovery_ratio}
+                        onChange={(e) => setEditingMaterial({
+                          ...editingMaterial,
+                          default_recovery_ratio: parseInt(e.target.value) || 100
+                        })}
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={resetToDefaults}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            초기화
-          </Button>
-        </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSaveMaterial}>
+                저장
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

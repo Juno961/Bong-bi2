@@ -20,6 +20,7 @@ import {
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { getMaterialDisplayName, getMaterialDefaults } from "@/data/materialDefaults";
+import { WelcomeGuide, GuideStep } from "@/components/ui/onboarding-tour";
 
 interface OrderItem {
   id: string;
@@ -359,11 +360,28 @@ const Dashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calculator className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>아직 계산 내역이 없습니다</p>
-                    <p className="text-xs">소재 계산기에서 계산을 시작해보세요</p>
-                  </div>
+                  <WelcomeGuide
+                    title="첫 계산을 시작해보세요!"
+                    description="아직 계산 내역이 없습니다. 봉비서로 CNC 재료 계산을 시작해보세요."
+                    className="border-0 bg-transparent"
+                  >
+                    <GuideStep
+                      number={1}
+                      title="계산기로 이동"
+                      description="자재 계산기에서 첫 계산을 진행하세요"
+                      action={() => window.location.href = '/calculator'}
+                    />
+                    <GuideStep
+                      number={2}
+                      title="재료와 치수 입력"
+                      description="사용할 재료와 제품 치수를 입력하세요"
+                    />
+                    <GuideStep
+                      number={3}
+                      title="결과 확인"
+                      description="계산 결과와 견적을 확인하고 저장하세요"
+                    />
+                  </WelcomeGuide>
                 )}
               </div>
               <div className="mt-4 pt-4 border-t border-border">

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { MaterialForm } from "@/components/calculator/MaterialForm";
+import { MaterialFormWizard } from "@/components/calculator/MaterialFormWizard";
 import { ResultsPanel } from "@/components/calculator/ResultsPanel";
 import { SavedOrdersSection } from "@/components/calculator/SavedOrdersSection";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Save, Download, Share, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { OnboardingTour } from "@/components/ui/onboarding-tour";
 // API 클라이언트로 대체
 import {
   calculateRodMaterial,
@@ -71,6 +72,9 @@ const Calculator = () => {
   // Load calculation settings to determine save behavior
   const [autoCalculateEnabled, setAutoCalculateEnabled] = useState(true);
   const [saveHistoryEnabled, setSaveHistoryEnabled] = useState(true);
+  
+  // Onboarding tour state
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const loadCalculationSettings = () => {
@@ -125,6 +129,13 @@ const Calculator = () => {
     };
 
     checkApiConnection();
+    
+    // Check if user should see onboarding
+    const hasCompletedOnboarding = localStorage.getItem('onboarding-completed');
+    const hasUsedCalculator = localStorage.getItem('has-used-calculator');
+    if (!hasCompletedOnboarding && !hasUsedCalculator) {
+      setShowOnboarding(true);
+    }
   }, []);
 
   // Note: Temporary orders are now managed by SavedOrdersSection with localStorage
@@ -272,6 +283,79 @@ const Calculator = () => {
     });
   };
 
+  // Clear calculation results (for "새로 계산하기" button)
+  const handleClearResults = () => {
+    setResults(null);
+    setCurrentFormData(null);
+    setIsCalculating(false);
+  };
+
+  // Onboarding tour steps
+  const onboardingSteps = [
+    {
+      id: "welcome",
+      title: "봉비서에 오신 것을 환영합니다!",
+      position: 'center' as const,
+      content: (
+        <div className="space-y-3">
+          <p>CNC 재료 계산을 빠르고 정확하게 도와드리는 봉비서입니다.</p>
+          <p>간단한 가이드를 통해 사용법을 익혀보세요!</p>
+        </div>
+      ),
+    },
+    {
+      id: "material-tabs",
+      title: "재료 유형 선택",
+      target: ".material-type-tabs",
+      content: (
+        <div className="space-y-2">
+          <p>먼저 사용할 재료 유형을 선택하세요.</p>
+          <ul className="text-sm space-y-1">
+            <li>• <strong>봉재/각재</strong>: 원봉, 각봉 등</li>
+            <li>• <strong>판재</strong>: 플레이트, 판금 등</li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: "form-steps",
+      title: "단계별 입력",
+      target: ".form-wizard-progress",
+      content: (
+        <div className="space-y-2">
+          <p>입력 과정이 3단계로 나뉘어져 있어 쉽게 따라할 수 있습니다.</p>
+          <ul className="text-sm space-y-1">
+            <li>• <strong>1단계</strong>: 기본 정보 (필수)</li>
+            <li>• <strong>2단계</strong>: 치수 입력 (필수)</li>
+            <li>• <strong>3단계</strong>: 고급 설정 (선택)</li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: "auto-calculate",
+      title: "실시간 자동 계산",
+      target: ".results-panel",
+      content: (
+        <div className="space-y-2">
+          <p>필수 정보를 입력하면 자동으로 계산됩니다.</p>
+          <p className="text-sm text-gray-600">설정에서 수동 계산으로 변경할 수 있습니다.</p>
+        </div>
+      ),
+    },
+    {
+      id: "save-orders",
+      title: "주문 저장",
+      target: ".saved-orders-section",
+      content: (
+        <div className="space-y-2">
+          <p>계산 결과를 임시 저장하거나 영구 보관할 수 있습니다.</p>
+          <p className="text-sm text-gray-600">저장된 주문은 주문 내역에서 확인 가능합니다.</p>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <DashboardLayout>
       <div className="flex flex-col lg:flex-row lg:h-screen">
@@ -279,7 +363,7 @@ const Calculator = () => {
         <div className="w-full lg:w-1/3 bg-[#F7F8FA] lg:border-r border-gray-200 flex flex-col">
           <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
             {/* Material Type Tab Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gray-100 rounded-lg p-1 material-type-tabs">
               <button
                 onClick={() => setActiveTab("rod")}
                 className={cn(
@@ -307,13 +391,14 @@ const Calculator = () => {
 
           {/* Input Form - Scrollable */}
           <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6">
-            <MaterialForm
+            <MaterialFormWizard
               onCalculate={calculateMaterials}
               materialType={activeTab}
               onProductNameUpdate={(updateFn) => {
                 productNameUpdateRef.current = updateFn;
               }}
               autoCalculateEnabled={autoCalculateEnabled}
+              onClearResults={handleClearResults}
             />
           </div>
         </div>
@@ -349,7 +434,7 @@ const Calculator = () => {
           </div>
 
           {/* Saved Orders Section */}
-          <div className="p-4 lg:p-6 border-b border-gray-200 bg-[#F7F8FA]">
+          <div className="p-4 lg:p-6 border-b border-gray-200 bg-[#F7F8FA] saved-orders-section">
             <SavedOrdersSection
               materialType={activeTab}
               onAddOrder={(addOrderFn) => {
@@ -359,7 +444,7 @@ const Calculator = () => {
           </div>
 
           {/* Results Content - Scrollable */}
-          <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6 bg-[#F7F8FA]">
+          <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6 bg-[#F7F8FA] results-panel">
             <ResultsPanel
               results={results}
               isCalculating={isCalculating}
@@ -378,6 +463,17 @@ const Calculator = () => {
           </div>
         </div>
       </div>
+
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        steps={onboardingSteps}
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={() => {
+          setShowOnboarding(false);
+          toast.success("가이드가 완료되었습니다! 이제 계산을 시작해보세요.");
+        }}
+      />
     </DashboardLayout>
   );
 };

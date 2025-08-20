@@ -6,6 +6,7 @@ export interface MaterialDefaults {
   bar_unit_price: number; // KRW/kg
   plate_unit_price: number; // KRW/kg
   scrap_unit_price: number; // KRW/kg
+  default_recovery_ratio: number; // % (기본 스크랩 환산비율)
 }
 
 export const materialDefaults: Record<string, MaterialDefaults> = {
@@ -16,6 +17,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 8000,
     plate_unit_price: 8000, // Same as bar price by default
     scrap_unit_price: 6400, // 80% of bar price
+    default_recovery_ratio: 90, // 황동 기본 환산비율 90%
   },
   steel: {
     material: "SUM24L/S45C",
@@ -24,6 +26,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 7000,
     plate_unit_price: 7000,
     scrap_unit_price: 5600,
+    default_recovery_ratio: 80, // 철강 기본 환산비율 80%
   },
   stainless_303: {
     material: "SUS303",
@@ -32,6 +35,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 8500,
     plate_unit_price: 8500,
     scrap_unit_price: 6800,
+    default_recovery_ratio: 100, // 스테인리스 기본 환산비율 100%
   },
   stainless: {
     material: "SUS304",
@@ -40,6 +44,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 8500,
     plate_unit_price: 8500,
     scrap_unit_price: 6800,
+    default_recovery_ratio: 100, // 스테인리스 기본 환산비율 100%
   },
   stainless_316: {
     material: "SUS316",
@@ -48,6 +53,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 9000,
     plate_unit_price: 9000,
     scrap_unit_price: 7200,
+    default_recovery_ratio: 100, // 스테인리스 기본 환산비율 100%
   },
   aluminum: {
     material: "AL",
@@ -56,6 +62,7 @@ export const materialDefaults: Record<string, MaterialDefaults> = {
     bar_unit_price: 4000,
     plate_unit_price: 4000,
     scrap_unit_price: 3200,
+    default_recovery_ratio: 90, // 알루미늄 기본 환산비율 90%
   },
 };
 

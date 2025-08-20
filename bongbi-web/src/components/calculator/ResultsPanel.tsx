@@ -308,358 +308,288 @@ export const ResultsPanel = ({
   const grade = getUtilizationGrade(results.utilizationRate);
 
   return (
-    <div className="space-y-4">
-      {/* Professional Results Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold text-gray-900">계산 요약</CardTitle>
-            <Button
-              onClick={handleSaveOrder}
-              className="h-9 px-4 text-sm bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              저장
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Main Results Table */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr className="border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">제품명</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">수량</th>
-                  {materialType === "rod" && (
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">필요 봉재</th>
-                  )}
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">제품당 가격</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-blue-700 bg-blue-50">총 재료비</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900">
-                    {formData?.productName || "제품-001"}
-                  </td>
-                  <td className="px-4 py-4 text-center text-sm text-gray-900 font-mono">
-                    {(formData?.quantity || 0).toLocaleString()} {materialType === "sheet" ? "장" : "개"}
-                  </td>
-                  {materialType === "rod" && (
-                    <td className="px-4 py-4 text-center text-sm text-gray-900">
-                      <div className="flex items-center justify-center gap-2">
-                        <Input
-                          type="number"
-                          value={editableBarsNeeded}
-                          onChange={(e) =>
-                            setEditableBarsNeeded(parseInt(e.target.value) || 0)
-                          }
-                          className="w-16 h-8 text-sm text-center border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 font-mono"
-                          min={results.totalBarsNeeded}
-                        />
-                        <span className="text-gray-500 text-sm font-medium">봉</span>
-                      </div>
-                    </td>
-                  )}
-                  <td className="px-4 py-4 text-right text-sm text-gray-900 font-mono">
-                    {isScrapActive && realUnitPrice !== undefined ? (
-                      <div className="space-y-0.5">
-                        <div className="line-through text-gray-500">{Math.round(baseUnitPrice).toLocaleString()}원</div>
-                        <div className="text-green-700 font-semibold">{Math.round(realUnitPrice).toLocaleString()}원</div>
-                      </div>
-                    ) : (
-                      <div>{Math.round(baseUnitPrice).toLocaleString()}원</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-right text-lg font-bold text-blue-700 font-mono bg-blue-50">
-                    {isScrapActive && results.realCost ? (
-                      <div>
-                        <div className="text-sm line-through text-gray-500">
-                          {Math.round(results.materialCost).toLocaleString()}원
-                        </div>
-                        <div className="text-lg font-bold text-green-700">
-                          {Math.round(results.realCost).toLocaleString()}원
-                        </div>
-                      </div>
-                    ) : (
-                      <div>{Math.round(results.materialCost).toLocaleString()}원</div>
-                    )}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+    <div className="space-y-6">
+      {/* 1. Hero Section - 핵심 정보 */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {/* 총 재료비 - 가장 큰 텍스트 */}
+              <div className="mb-4">
+                <div className="text-lg text-gray-700 mb-1">💰 총 재료비</div>
+                {isScrapActive && results.realCost ? (
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-gray-500 line-through">
+                      {Math.round(results.materialCost).toLocaleString()}원
+                    </div>
+                    <div className="text-4xl font-bold text-green-600">
+                      {Math.round(results.realCost).toLocaleString()}원
+                    </div>
+                    <div className="text-lg font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                      -{Math.round(results.scrapSavings).toLocaleString()}원
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-4xl font-bold text-gray-900">
+                    {Math.round(results.materialCost).toLocaleString()}원
+                  </div>
+                )}
+              </div>
 
-          {/* Technical Data for Rods */}
-          {materialType === "rod" && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                <div className="text-xs text-gray-600 font-medium">활용률</div>
-                <div className="text-lg font-bold text-gray-900 font-mono">{results.utilizationRate.toFixed(1)}%</div>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                <div className="text-xs text-gray-600 font-medium">봉재당 생산</div>
-                <div className="text-lg font-bold text-gray-900 font-mono">{piecesPerBar} 개</div>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                <div className="text-xs text-gray-600 font-medium">단위 길이</div>
-                <div className="text-lg font-bold text-gray-900 font-mono">{unitLength.toFixed(1)} mm</div>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded p-3">
-                <div className="text-xs text-gray-600 font-medium">사용 가능 길이</div>
-                <div className="text-lg font-bold text-gray-900 font-mono">{usableBarLength.toFixed(0)} mm</div>
+              {/* 기본 정보 한줄 요약 */}
+              <div className="text-sm text-gray-600 space-y-1">
+                <div className="flex items-center gap-4">
+                  <span>📦 {formData?.productName || "제품-001"}</span>
+                  <span>{(parseInt(formData?.quantity || "0")).toLocaleString()}개</span>
+                  {materialType === "rod" && (
+                    <span>필요 봉재: {editableBarsNeeded}봉</span>
+                  )}
+                </div>
               </div>
             </div>
-          )}
+
+            {/* 저장 버튼 우상단 고정 */}
+            <Button
+              onClick={handleSaveOrder}
+              className="ml-4 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              💾 저장
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Material Detail Section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-gray-900">재료 상세 정보</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {materialType === "sheet" ? (
-            <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <div className="text-xs text-blue-700 mb-1">총 가격</div>
-              <div className="text-sm font-semibold text-blue-700">
+      {/* 2. Key Metrics Grid - 핵심 지표 2x2 */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* 제품당 가격 */}
+        <Card className="p-4">
+          <div className="text-center">
+            <div className="text-2xl mb-2">💰</div>
+            <div className="text-sm text-gray-600 mb-2">제품당 가격</div>
+            {isScrapActive && realUnitPrice !== undefined ? (
+              <div className="space-y-1">
+                <div className="text-lg font-bold text-gray-500 line-through">
+                  {Math.round(baseUnitPrice).toLocaleString()}원
+                </div>
+                <div className="text-xl font-bold text-green-600">
+                  {Math.round(realUnitPrice).toLocaleString()}원
+                </div>
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-gray-900">
+                {Math.round(baseUnitPrice).toLocaleString()}원
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* 활용률 */}
+        <Card className="p-4">
+          <div className="text-center">
+            <div className="text-2xl mb-2">{grade.emoji}</div>
+            <div className="text-sm text-gray-600 mb-2">활용률</div>
+            <div className="text-xl font-bold text-gray-900">
+              {results.utilizationRate.toFixed(1)}%
+            </div>
+            <div className={cn(
+              "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1",
+              grade.color
+            )}>
+              {grade.label}
+            </div>
+          </div>
+        </Card>
+
+        {/* 봉재당 생산 (봉재만) */}
+        {materialType === "rod" ? (
+          <Card className="p-4">
+            <div className="text-center">
+              <div className="text-2xl mb-2">📏</div>
+              <div className="text-sm text-gray-600 mb-2">봉재당 생산</div>
+              <div className="text-xl font-bold text-blue-600">
+                {piecesPerBar}개
+              </div>
+              {materialType === "rod" && (
+                <div className="mt-2">
+                  <Input
+                    type="number"
+                    value={editableBarsNeeded}
+                    onChange={(e) => setEditableBarsNeeded(parseInt(e.target.value) || 0)}
+                    className="w-16 h-8 text-sm text-center mx-auto"
+                    min={results.totalBarsNeeded}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">필요 봉재</div>
+                </div>
+              )}
+            </div>
+          </Card>
+        ) : (
+          <Card className="p-4">
+            <div className="text-center">
+              <div className="text-2xl mb-2">📐</div>
+              <div className="text-sm text-gray-600 mb-2">판재 정보</div>
+              <div className="text-lg font-bold text-gray-900">
                 {formatCurrency(results.materialCost)}
               </div>
             </div>
-          ) : (
-            <>
-              {/* 4 Grid Cards for Rod Details */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Card 1: 봉재당 생산 / 활용률 */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        봉재당 생산
-                      </div>
-                      <div className="text-lg font-semibold text-blue-600">
-                        {piecesPerBar} 개
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-300"></div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">활용률</div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {results.utilizationRate.toFixed(1)}%
-                      </div>
-                      <div
-                        className={cn(
-                          "inline-flex items-center px-2 py-1 rounded-md text-xs font-medium mt-1",
-                          grade.color,
-                        )}
-                      >
-                        {grade.emoji} {grade.label}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          </Card>
+        )}
 
-                {/* Card 2: 봉재 길이 / 단위 길이 */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        봉재 길이
-                      </div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {results.standardBarLength} mm
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-300"></div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        단위 길이
-                      </div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {unitLength.toFixed(1)} mm
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card 3: 봉재 중량 / 제품 중량 */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        봉재 중량
-                      </div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {barWeight.toFixed(3)} kg
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-300"></div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        제품 중량
-                      </div>
-                      <div className="text-sm font-semibold text-gray-900">
-                        {individualProductWeight.toFixed(1)} g
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card 4: 봉재당 가격 / 제품당 가격 */}
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <div className="space-y-3">
-                    <div className="text-center">
-                      <div className="text-xs text-blue-700 mb-1">
-                        봉재당 가격 (원가 기준)
-                      </div>
-                      <div className="text-lg font-semibold text-blue-700">
-                        {formatCurrency(pricePerBar)}
-                      </div>
-                    </div>
-                    <div className="border-t border-blue-300"></div>
-                    <div className="text-center">
-                      <div className="text-xs text-blue-700 mb-1">
-                        제품당 가격
-                      </div>
-                      {isScrapActive && realUnitPrice !== undefined ? (
-                        <div className="text-sm font-semibold text-blue-700 space-y-0.5">
-                          <div className="line-through text-gray-500">{formatCurrency(baseUnitPrice)}</div>
-                          <div className="text-green-700">{formatCurrency(realUnitPrice)}</div>
-                        </div>
-                      ) : (
-                        <div className="text-sm font-semibold text-blue-700">{formatCurrency(baseUnitPrice)}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* 스크랩 절약 */}
+        <Card className="p-4">
+          <div className="text-center">
+            <div className="text-2xl mb-2">♻️</div>
+            <div className="text-sm text-gray-600 mb-2">스크랩 절약</div>
+            {isScrapActive ? (
+              <div className="text-xl font-bold text-green-600">
+                {Math.round(results.scrapSavings).toLocaleString()}원
               </div>
-
-              {/* Unit Length Formula Note */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
-                  <Info className="h-4 w-4 inline mr-1" />
-                  <strong>단위 길이 계산:</strong> 제품 길이 (
-                  <strong>{formData?.productLength}mm</strong>) + 절삭 손실 (
-                  <strong>{cuttingLoss.toFixed(1)}mm</strong>) = <strong>{unitLength.toFixed(1)}mm</strong>
-                  <br />
-                  <strong>사용 가능 봉재 길이:</strong> 봉재 길이 (
-                  <strong>{results.standardBarLength}mm</strong>) - 헤드 절삭 (
-                  <strong>{headCut}mm</strong>) - 테일 절삭 (
-                  <strong>{tailCut}mm</strong>) = <strong>{usableBarLength.toFixed(1)}mm</strong>
-                </p>
+            ) : (
+              <div className="text-xl font-bold text-gray-400">
+                계산 안함
               </div>
-            </>
-          )}
+            )}
+          </div>
+        </Card>
+      </div>
 
-          {/* Scrap Information (if applicable for rods) */}
-          {materialType === "rod" && results.scrapWeight !== undefined && results.scrapWeight > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Recycle className="h-4 w-4 text-green-600" />
-                <h4 className="font-semibold text-green-800">스크랩 계산 결과</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="bg-white rounded p-3 border border-green-200">
-                  <div className="text-xs text-green-600 font-medium">스크랩 중량</div>
-                  <div className="text-lg font-bold text-green-800">{results.scrapWeight.toFixed(3)} kg</div>
+      {/* 3. Collapsible Details - 기본 접힘 */}
+      <Card>
+        <Collapsible open={isDetailedOpen} onOpenChange={setIsDetailedOpen}>
+          <CollapsibleTrigger asChild>
+            <div className="p-4 cursor-pointer hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold text-gray-900">
+                    🔽 상세 정보 보기
+                  </div>
                 </div>
-                <div className="bg-white rounded p-3 border border-green-200">
-                  <div className="text-xs text-green-600 font-medium">스크랩 절약액</div>
-                  <div className="text-lg font-bold text-green-800">{formatCurrency(results.scrapSavings)}</div>
-                </div>
-                <div className="bg-white rounded p-3 border border-green-200">
-                  <div className="text-xs text-green-600 font-medium">실제 재료비</div>
-                  <div className="text-lg font-bold text-green-800">{results.realCost ? formatCurrency(results.realCost) : "-"}</div>
-                </div>
+                <ChevronDown className={cn(
+                  "h-4 w-4 text-gray-400 transition-transform duration-200",
+                  isDetailedOpen && "rotate-180"
+                )} />
               </div>
             </div>
-          )}
-
-
-        </CardContent>
-      </Card>
-
-      {/* Additional Details section for plates */}
-      {materialType === "rod" && (
-        <Card>
-          <Collapsible open={isDetailedOpen} onOpenChange={setIsDetailedOpen}>
-            <CollapsibleTrigger asChild>
-              <div className="p-4 cursor-pointer hover:bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-gray-900 pl-5">
-                    추가 상세 정보
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-gray-400 transition-transform",
-                      isDetailedOpen && "rotate-180",
-                    )}
-                  />
-                </div>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="px-4 pb-4 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-800 text-sm">
-                      기본 수치
-                    </h4>
-                    <div className="bg-gray-50 rounded-lg py-2.5 px-4 space-y-3 border border-gray-200">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">
-                          총 중량
-                        </span>
-                        <span className="font-semibold text-gray-900 text-base">
-                          {formatWeight(results.totalWeight)}
-                        </span>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6 pt-0">
+              {/* 재료 규격 정보 */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-800">📋 재료 규격 정보</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {materialType === "rod" ? (
+                    <>
+                      <div className="bg-gray-50 rounded-lg p-3 border">
+                        <div className="text-xs text-gray-600 mb-1">봉재 길이</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {results.standardBarLength}mm
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {results.scrapWeight !== undefined && results.scrapWeight > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-green-800 text-sm">
-                        스크랩 분석
-                      </h4>
-                      <div className="bg-green-50 rounded-lg py-2.5 px-4 space-y-2 border border-green-200">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-green-700">
-                            스크랩 중량
-                          </span>
-                          <span className="font-semibold text-green-900 text-base">
-                            {results.scrapWeight.toFixed(3)} kg
-                          </span>
+                      <div className="bg-gray-50 rounded-lg p-3 border">
+                        <div className="text-xs text-gray-600 mb-1">단위 길이</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {unitLength.toFixed(1)}mm
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-green-700">
-                            스크랩 절약액
-                          </span>
-                          <span className="font-semibold text-green-700 text-base">
-                            {formatCurrency(results.scrapSavings)}
-                          </span>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3 border">
+                        <div className="text-xs text-gray-600 mb-1">사용 가능 길이</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {usableBarLength.toFixed(0)}mm
                         </div>
-                        {results.realCost && (
-                          <div className="flex justify-between items-center border-t border-green-200 pt-2">
-                            <span className="text-sm font-medium text-green-700">
-                              실제 재료비
-                            </span>
-                            <span className="font-semibold text-green-800 text-base">
-                              {formatCurrency(results.realCost)}
-                            </span>
-                          </div>
-                        )}
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3 border">
+                        <div className="text-xs text-gray-600 mb-1">재료 타입</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {getMaterialTypeDisplay(formData?.materialType || "")}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 border">
+                      <div className="text-xs text-gray-600 mb-1">판재 정보</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formData?.plateThickness}×{formData?.plateWidth}×{formData?.plateLength}mm
                       </div>
                     </div>
                   )}
                 </div>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-      )}
+
+              {/* 길이/중량 상세 */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-800">⚖️ 길이/중량 상세</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <div className="text-xs text-blue-700 mb-1">총 중량</div>
+                    <div className="text-sm font-semibold text-blue-800">
+                      {formatWeight(results.totalWeight)}
+                    </div>
+                  </div>
+                  {materialType === "rod" && (
+                    <>
+                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <div className="text-xs text-blue-700 mb-1">봉재 중량</div>
+                        <div className="text-sm font-semibold text-blue-800">
+                          {barWeight.toFixed(3)}kg
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <div className="text-xs text-blue-700 mb-1">제품 중량</div>
+                        <div className="text-sm font-semibold text-blue-800">
+                          {individualProductWeight.toFixed(1)}g
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* 계산 공식 (봉재만) */}
+              {materialType === "rod" && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-800">🧮 계산 공식</h4>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-700">
+                      <Info className="h-4 w-4 inline mr-1" />
+                      <strong>단위 길이:</strong> 제품 길이 ({formData?.productLength}mm) + 절삭 손실 ({cuttingLoss.toFixed(1)}mm) = {unitLength.toFixed(1)}mm
+                      <br />
+                      <strong>사용 가능 길이:</strong> 봉재 길이 ({results.standardBarLength}mm) - 헤드 절삭 ({headCut}mm) - 테일 절삭 ({tailCut}mm) = {usableBarLength.toFixed(1)}mm
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 스크랩 분석 (해당시) */}
+              {results.scrapWeight !== undefined && results.scrapWeight > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-green-800">♻️ 스크랩 분석</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="text-xs text-green-700 mb-1">스크랩 중량</div>
+                      <div className="text-sm font-semibold text-green-800">
+                        {results.scrapWeight.toFixed(3)}kg
+                      </div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="text-xs text-green-700 mb-1">스크랩 절약액</div>
+                      <div className="text-sm font-semibold text-green-800">
+                        {formatCurrency(results.scrapSavings)}
+                      </div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="text-xs text-green-700 mb-1">실제 재료비</div>
+                      <div className="text-sm font-semibold text-green-800">
+                        {results.realCost ? formatCurrency(results.realCost) : "-"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
     </div>
   );
 };
