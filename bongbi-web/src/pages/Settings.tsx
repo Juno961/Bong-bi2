@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import {
   Settings as SettingsIcon,
-  Save,
   RotateCcw,
   Plus,
   X,
@@ -38,6 +37,23 @@ const Settings = () => {
       ...data,
     })),
   );
+
+  // Load custom material defaults from localStorage on mount
+  useEffect(() => {
+    const storedMaterials = localStorage.getItem("customMaterialDefaults");
+    if (storedMaterials) {
+      try {
+        const customDefaults = JSON.parse(storedMaterials);
+        const loadedMaterials = Object.entries(customDefaults).map(([key, data]) => ({
+          id: key,
+          ...(data as MaterialDefaults),
+        }));
+        setMaterials(loadedMaterials);
+      } catch (error) {
+        console.error("Failed to load custom material defaults:", error);
+      }
+    }
+  }, []);
 
   // Calculation settings state
   const [calculationSettings, setCalculationSettings] = useState({
@@ -78,6 +94,30 @@ const Settings = () => {
     scrapRatio: 100,
   });
 
+  // Load default values from localStorage on mount
+  useEffect(() => {
+    const storedDefaults = localStorage.getItem("defaultValues");
+    if (storedDefaults) {
+      try {
+        const defaults = JSON.parse(storedDefaults);
+        setDefaultValues(defaults);
+      } catch (error) {
+        console.error("Failed to load default values:", error);
+      }
+    }
+  }, []);
+
+  // Save default values to localStorage when they change
+  const updateDefaultValues = (newValues: typeof defaultValues) => {
+    setDefaultValues(newValues);
+    localStorage.setItem("defaultValues", JSON.stringify(newValues));
+    
+    // Dispatch custom event for same-tab updates
+    window.dispatchEvent(new CustomEvent("defaultValuesChanged", {
+      detail: newValues
+    }));
+  };
+
   const addMaterial = () => {
     const newMaterial: EditableMaterial = {
       id: `new_${Date.now()}`,
@@ -89,11 +129,41 @@ const Settings = () => {
       scrap_unit_price: 0,
       isNew: true,
     };
-    setMaterials([...materials, newMaterial]);
+    const updatedMaterials = [...materials, newMaterial];
+    setMaterials(updatedMaterials);
+    
+    // Save to localStorage for persistence
+    const materialDefaults = updatedMaterials.reduce((acc, material) => {
+      const { id, isNew, ...materialData } = material;
+      acc[id] = materialData;
+      return acc;
+    }, {} as Record<string, MaterialDefaults>);
+    
+    localStorage.setItem("customMaterialDefaults", JSON.stringify(materialDefaults));
+    
+    // Dispatch event for real-time updates
+    window.dispatchEvent(new CustomEvent("materialDefaultsChanged", {
+      detail: materialDefaults
+    }));
   };
 
   const deleteMaterial = (id: string) => {
-    setMaterials(materials.filter((material) => material.id !== id));
+    const updatedMaterials = materials.filter((material) => material.id !== id);
+    setMaterials(updatedMaterials);
+    
+    // Save to localStorage for persistence
+    const materialDefaults = updatedMaterials.reduce((acc, material) => {
+      const { id, isNew, ...materialData } = material;
+      acc[id] = materialData;
+      return acc;
+    }, {} as Record<string, MaterialDefaults>);
+    
+    localStorage.setItem("customMaterialDefaults", JSON.stringify(materialDefaults));
+    
+    // Dispatch event for real-time updates
+    window.dispatchEvent(new CustomEvent("materialDefaultsChanged", {
+      detail: materialDefaults
+    }));
   };
 
   const updateMaterial = (
@@ -101,11 +171,24 @@ const Settings = () => {
     field: keyof MaterialDefaults,
     value: string | number,
   ) => {
-    setMaterials(
-      materials.map((material) =>
-        material.id === id ? { ...material, [field]: value } : material,
-      ),
+    const updatedMaterials = materials.map((material) =>
+      material.id === id ? { ...material, [field]: value } : material,
     );
+    setMaterials(updatedMaterials);
+    
+    // Save to localStorage for persistence
+    const materialDefaults = updatedMaterials.reduce((acc, material) => {
+      const { id, isNew, ...materialData } = material;
+      acc[id] = materialData;
+      return acc;
+    }, {} as Record<string, MaterialDefaults>);
+    
+    localStorage.setItem("customMaterialDefaults", JSON.stringify(materialDefaults));
+    
+    // Dispatch event for real-time updates
+    window.dispatchEvent(new CustomEvent("materialDefaultsChanged", {
+      detail: materialDefaults
+    }));
   };
 
   const resetToDefaults = () => {
@@ -113,29 +196,58 @@ const Settings = () => {
       "모든 설정을 기본값으로 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     );
     if (confirmed) {
-      setMaterials(
-        Object.entries(materialDefaults).map(([key, data]) => ({
+      try {
+        // 기본 재료 설정으로 복원
+        const defaultMaterials = Object.entries(materialDefaults).map(([key, data]) => ({
           id: key,
           ...data,
-        })),
-      );
-      setCalculationSettings({
-        autoCalculate: true,
-        saveHistory: true,
-        disablePlatePrice: false,
-      });
-      setDefaultValues({
-        headCut: 20,
-        tailCut: 250,
-        scrapRatio: 100,
-      });
+        }));
+        setMaterials(defaultMaterials);
+        
+        // 기본 계산 설정으로 복원
+        const defaultCalculationSettings = {
+          autoCalculate: true,
+          saveHistory: true,
+          disablePlatePrice: false,
+        };
+        setCalculationSettings(defaultCalculationSettings);
+        
+        // 기본값 복원
+        const defaultDefaults = {
+          headCut: 20,
+          tailCut: 250,
+          scrapRatio: 100,
+        };
+        setDefaultValues(defaultDefaults);
+        
+        // localStorage에서 커스텀 설정 제거 (기본값 사용하도록)
+        localStorage.removeItem("customMaterialDefaults");
+        localStorage.setItem("calculationSettings", JSON.stringify(defaultCalculationSettings));
+        localStorage.setItem("defaultValues", JSON.stringify(defaultDefaults));
+        
+        // 모든 연결된 컴포넌트에 초기화 알림
+        window.dispatchEvent(new CustomEvent("calculationSettingsChanged", {
+          detail: defaultCalculationSettings
+        }));
+        window.dispatchEvent(new CustomEvent("defaultValuesChanged", {
+          detail: defaultDefaults
+        }));
+        window.dispatchEvent(new CustomEvent("materialDefaultsChanged", {
+          detail: Object.entries(materialDefaults).reduce((acc, [key, data]) => {
+            acc[key] = data;
+            return acc;
+          }, {} as Record<string, MaterialDefaults>)
+        }));
+        
+        alert("모든 설정이 기본값으로 초기화되었습니다!");
+      } catch (error) {
+        console.error("설정 초기화 중 오류 발생:", error);
+        alert("설정 초기화 중 오류가 발생했습니다. 다시 시도해주세요.");
+      }
     }
   };
 
-  const saveSettings = () => {
-    // TODO: Implement save functionality with backend API
-    alert("설정이 저장되었습니다.");
-  };
+
 
   return (
     <DashboardLayout>
@@ -163,12 +275,13 @@ const Settings = () => {
                   id="default-head-cut"
                   type="number"
                   value={defaultValues.headCut}
-                  onChange={(e) =>
-                    setDefaultValues({
+                  onChange={(e) => {
+                    const newValues = {
                       ...defaultValues,
                       headCut: parseInt(e.target.value) || 0,
-                    })
-                  }
+                    };
+                    updateDefaultValues(newValues);
+                  }}
                   placeholder="20"
                 />
               </div>
@@ -179,12 +292,13 @@ const Settings = () => {
                   id="default-tail-cut"
                   type="number"
                   value={defaultValues.tailCut}
-                  onChange={(e) =>
-                    setDefaultValues({
+                  onChange={(e) => {
+                    const newValues = {
                       ...defaultValues,
                       tailCut: parseInt(e.target.value) || 0,
-                    })
-                  }
+                    };
+                    updateDefaultValues(newValues);
+                  }}
                   placeholder="250"
                 />
               </div>
@@ -195,12 +309,13 @@ const Settings = () => {
                   id="default-scrap"
                   type="number"
                   value={defaultValues.scrapRatio}
-                  onChange={(e) =>
-                    setDefaultValues({
+                  onChange={(e) => {
+                    const newValues = {
                       ...defaultValues,
                       scrapRatio: parseInt(e.target.value) || 0,
-                    })
-                  }
+                    };
+                    updateDefaultValues(newValues);
+                  }}
                   placeholder="100"
                 />
               </div>
@@ -220,16 +335,13 @@ const Settings = () => {
                 <div className="space-y-0.5">
                   <Label className="text-base">실시간 자동 계산</Label>
                   <p className="text-sm text-muted-foreground">
-                    입력과 동시에 결과를 계산합니다
+                    입력 변경 시 즉시 자동으로 계산합니다. 비활성화하면 '계산하기' 버튼 클릭 시에만 계산됩니다.
                   </p>
                 </div>
                 <Switch
                   checked={calculationSettings.autoCalculate}
                   onCheckedChange={(checked) =>
-                    setCalculationSettings({
-                      ...calculationSettings,
-                      autoCalculate: checked,
-                    })
+                    updateCalculationSetting("autoCalculate", checked)
                   }
                 />
               </div>
@@ -267,10 +379,7 @@ const Settings = () => {
                 <Switch
                   checked={calculationSettings.disablePlatePrice}
                   onCheckedChange={(checked) =>
-                    setCalculationSettings({
-                      ...calculationSettings,
-                      disablePlatePrice: checked,
-                    })
+                    updateCalculationSetting("disablePlatePrice", checked)
                   }
                 />
               </div>
@@ -440,14 +549,10 @@ const Settings = () => {
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end">
           <Button variant="outline" onClick={resetToDefaults}>
             <RotateCcw className="h-4 w-4 mr-2" />
             초기화
-          </Button>
-          <Button onClick={saveSettings}>
-            <Save className="h-4 w-4 mr-2" />
-            설정 저장
           </Button>
         </div>
       </div>

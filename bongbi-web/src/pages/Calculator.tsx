@@ -69,8 +69,8 @@ const Calculator = () => {
   const productNameUpdateRef = useRef<(() => void) | null>(null);
 
   // Load calculation settings to determine save behavior
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
-  const [saveHistoryEnabled, setSaveHistoryEnabled] = useState(false);
+  const [autoCalculateEnabled, setAutoCalculateEnabled] = useState(true);
+  const [saveHistoryEnabled, setSaveHistoryEnabled] = useState(true);
 
   useEffect(() => {
     const loadCalculationSettings = () => {
@@ -78,8 +78,8 @@ const Calculator = () => {
       if (storedSettings) {
         try {
           const settings = JSON.parse(storedSettings);
-          setAutoSaveEnabled(settings.saveHistory || false);
-          setSaveHistoryEnabled(settings.saveHistory || false);
+          setAutoCalculateEnabled(settings.autoCalculate !== false); // 기본값 true
+          setSaveHistoryEnabled(settings.saveHistory !== false); // 기본값 true
         } catch (error) {
           console.error("Failed to load calculation settings:", error);
         }
@@ -97,8 +97,8 @@ const Calculator = () => {
 
     // Listen for custom event (when settings are updated in same tab)
     const handleSettingsChange = (e: CustomEvent) => {
-      setAutoSaveEnabled(e.detail.saveHistory || false);
-      setSaveHistoryEnabled(e.detail.saveHistory || false);
+      setAutoCalculateEnabled(e.detail.autoCalculate !== false);
+      setSaveHistoryEnabled(e.detail.saveHistory !== false);
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -313,6 +313,7 @@ const Calculator = () => {
               onProductNameUpdate={(updateFn) => {
                 productNameUpdateRef.current = updateFn;
               }}
+              autoCalculateEnabled={autoCalculateEnabled}
             />
           </div>
         </div>
@@ -365,7 +366,7 @@ const Calculator = () => {
               formData={currentFormData}
               onSaveOrder={handleSaveOrder}
               materialType={activeTab}
-              autoSaveEnabled={autoSaveEnabled}
+              autoSaveEnabled={saveHistoryEnabled} // saveHistoryEnabled가 자동저장 여부를 결정
               saveHistoryEnabled={saveHistoryEnabled}
               onPermanentSave={handlePermanentSave}
               onProductNameUpdate={() => {

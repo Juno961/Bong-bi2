@@ -31,7 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { HelpCircle, ChevronDown, LogIn, Info } from "lucide-react";
+import { HelpCircle, ChevronDown, LogIn, Info, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   materialDefaults,
@@ -71,12 +71,14 @@ interface MaterialFormProps {
   onCalculate: (data: MaterialFormData) => void;
   materialType: "rod" | "sheet";
   onProductNameUpdate?: (updateFn: () => void) => void;
+  autoCalculateEnabled?: boolean;
 }
 
 export const MaterialForm = ({
   onCalculate,
   materialType,
   onProductNameUpdate,
+  autoCalculateEnabled = true,
 }: MaterialFormProps) => {
   const [formData, setFormData] = useState<MaterialFormData>({
     productName: "",
@@ -87,13 +89,13 @@ export const MaterialForm = ({
     height: "",
     productLength: "",
     cuttingLoss: "2",
-    headCut: "20",
-    tailCut: "250",
+    headCut: "20", // 기본값이지만 설정에서 변경 가능
+    tailCut: "250", // 기본값이지만 설정에서 변경 가능
     quantity: "",
     customer: "",
     productWeight: "",
     actualProductWeight: "",
-    recoveryRatio: "",
+    recoveryRatio: "", // 기본값이지만 설정에서 변경 가능
     scrapUnitPrice: "읽기 전용",
     scrapPrice: "",
     standardBarLength: "",
@@ -114,6 +116,91 @@ export const MaterialForm = ({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
   const [isProductNameFocused, setIsProductNameFocused] = useState(false);
+
+  // 수동 계산 함수
+  const handleManualCalculate = () => {
+    const calculationData = {
+      ...formData,
+      scrapUnitPrice: formData.scrapPrice, // Map scrapPrice to scrapUnitPrice for calculation
+    };
+    onCalculate(calculationData);
+  };
+
+  // 기본값 설정 연동
+  useEffect(() => {
+    const loadDefaultValues = () => {
+      const storedDefaults = localStorage.getItem("defaultValues");
+      if (storedDefaults) {
+        try {
+          const defaults = JSON.parse(storedDefaults);
+          setFormData(prev => ({
+            ...prev,
+            headCut: defaults.headCut?.toString() || "20",
+            tailCut: defaults.tailCut?.toString() || "250",
+            recoveryRatio: defaults.scrapRatio?.toString() || "",
+          }));
+        } catch (error) {
+          console.error("Failed to load default values:", error);
+        }
+      }
+    };
+
+    loadDefaultValues();
+
+    // Listen for default values changes
+    const handleDefaultValuesChange = (e: CustomEvent) => {
+      setFormData(prev => ({
+        ...prev,
+        headCut: e.detail.headCut?.toString() || "20",
+        tailCut: e.detail.tailCut?.toString() || "250",
+        recoveryRatio: e.detail.scrapRatio?.toString() || "",
+      }));
+    };
+
+    window.addEventListener("defaultValuesChanged", handleDefaultValuesChange as EventListener);
+
+    return () => {
+      window.removeEventListener("defaultValuesChanged", handleDefaultValuesChange as EventListener);
+    };
+  }, []);
+
+  // 커스텀 재료 기본값 불러오기
+  const getCustomMaterialDefaults = (materialKey: string) => {
+    const storedMaterials = localStorage.getItem("customMaterialDefaults");
+    if (storedMaterials) {
+      try {
+        const customDefaults = JSON.parse(storedMaterials);
+        return customDefaults[materialKey] || getMaterialDefaults(materialKey);
+      } catch (error) {
+        console.error("Failed to load custom material defaults:", error);
+      }
+    }
+    return getMaterialDefaults(materialKey);
+  };
+
+  // 소재 기본값 설정 변경 감지
+  useEffect(() => {
+    const handleMaterialDefaultsChange = (e: CustomEvent) => {
+      // 현재 선택된 재료가 변경된 경우 업데이트
+      if (formData.materialType && e.detail[formData.materialType]) {
+        const defaults = e.detail[formData.materialType];
+        setFormData(prev => ({
+          ...prev,
+          standardBarLength: defaults.standard_bar_length.toString(),
+          materialDensity: defaults.material_density.toString(),
+          materialPrice: defaults.bar_unit_price.toString(),
+          plateUnitPrice: defaults.plate_unit_price.toString(),
+          scrapPrice: defaults.scrap_unit_price.toString(),
+        }));
+      }
+    };
+
+    window.addEventListener("materialDefaultsChanged", handleMaterialDefaultsChange as EventListener);
+
+    return () => {
+      window.removeEventListener("materialDefaultsChanged", handleMaterialDefaultsChange as EventListener);
+    };
+  }, [formData.materialType]);
 
   // Generate auto product name based on permanently saved orders count
   const generateProductName = () => {
@@ -217,12 +304,14 @@ export const MaterialForm = ({
     setShowCommonLoss(false);
     setIsScrapOpen(false);
 
-    // Apply field mapping for calculation
-    const calculationData = {
-      ...resetData,
-      scrapUnitPrice: resetData.scrapPrice, // Map scrapPrice to scrapUnitPrice for calculation
-    };
-    onCalculate(calculationData);
+    // 실시간 자동 계산이 활성화된 경우에만 자동 계산 실행
+    if (autoCalculateEnabled) {
+      const calculationData = {
+        ...resetData,
+        scrapUnitPrice: resetData.scrapPrice, // Map scrapPrice to scrapUnitPrice for calculation
+      };
+      onCalculate(calculationData);
+    }
   };
 
   const handleInputChange = (field: keyof MaterialFormData, value: string) => {
@@ -269,7 +358,7 @@ export const MaterialForm = ({
 
     // Auto-populate material defaults when material type is selected
     if (field === "materialType" && value) {
-      const defaults = getMaterialDefaults(value);
+      const defaults = getCustomMaterialDefaults(value);
       if (defaults) {
         updatedData = {
           ...updatedData,
@@ -287,12 +376,14 @@ export const MaterialForm = ({
     // Validate required fields and show gentle feedback
     const validationErrors = validateRequiredFields(updatedData);
 
-    // Auto-calculate on change with field mapping
-    const calculationData = {
-      ...updatedData,
-      scrapUnitPrice: updatedData.scrapPrice, // Map scrapPrice to scrapUnitPrice for calculation
-    };
-    onCalculate(calculationData);
+    // 실시간 자동 계산이 활성화된 경우에만 자동 계산 실행
+    if (autoCalculateEnabled) {
+      const calculationData = {
+        ...updatedData,
+        scrapUnitPrice: updatedData.scrapPrice, // Map scrapPrice to scrapUnitPrice for calculation
+      };
+      onCalculate(calculationData);
+    }
 
     // Show validation feedback only if there are errors and user has started filling required fields
     if (validationErrors.length > 0 && (updatedData.materialType || updatedData.quantity || updatedData.shape)) {
@@ -1287,6 +1378,24 @@ export const MaterialForm = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 수동 계산 버튼 - 실시간 자동 계산이 비활성화된 경우에만 표시 */}
+      {!autoCalculateEnabled && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <Button
+            onClick={handleManualCalculate}
+            className="w-full"
+            size="lg"
+            disabled={!formData.materialType || !formData.quantity}
+          >
+            <Calculator className="h-4 w-4 mr-2" />
+            계산하기
+          </Button>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            실시간 자동 계산이 비활성화되어 있습니다. 계산하기 버튼을 눌러 결과를 확인하세요.
+          </p>
+        </div>
+      )}
     </TooltipProvider>
   );
 };
