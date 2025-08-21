@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,9 @@ const MaterialCard = ({ material, onEdit, onDelete }: MaterialCardProps) => (
 );
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('defaults');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as SettingsTab) || 'defaults';
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<EditableMaterial | null>(null);
   // Convert materialDefaults to editable format
@@ -170,6 +173,12 @@ const Settings = () => {
       }
     }
   }, []);
+
+  // Update active tab when URL search params change
+  useEffect(() => {
+    const tab = (searchParams.get('tab') as SettingsTab) || 'defaults';
+    setActiveTab(tab);
+  }, [searchParams]);
 
   // Calculation settings state
   const [calculationSettings, setCalculationSettings] = useState({

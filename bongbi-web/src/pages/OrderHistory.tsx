@@ -7,6 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -70,6 +75,20 @@ interface OrderItem {
   customer?: string;
   deliveryUnitPrice?: number;
   deliveryDate?: Date;
+  // 추가 필드들
+  productLength?: string;
+  headCut?: string;
+  tailCut?: string;
+  cuttingLoss?: string;
+  totalWeight?: number;
+  productWeight?: string;
+  actualProductWeight?: string;
+  materialDensity?: string;
+  materialPrice?: number;
+  scrapSavings?: number;
+  scrapWeight?: number;
+  recoveryRatio?: string;
+  scrapUnitPrice?: number;
 }
 
 type SortField =
@@ -97,6 +116,7 @@ const OrderHistory = () => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [customDateStart, setCustomDateStart] = useState("");
   const [customDateEnd, setCustomDateEnd] = useState("");
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
 
   // Function to get Korean shape names for display
   const getShapeDisplayName = (shape: string) => {
@@ -183,17 +203,22 @@ const OrderHistory = () => {
     return getMaterialDisplayName(materialType);
   };
 
+  // Helper components for improved modal
+  const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex justify-between items-center">
+      <span className="text-sm text-gray-600">{label}</span>
+      <span className="text-sm font-medium text-gray-900">{value}</span>
+    </div>
+  );
+
   const getUtilizationGrade = (rate: number) => {
-    if (rate >= 90)
-      return { label: "완벽", color: "bg-green-100 text-green-700" };
-    if (rate >= 80)
-      return { label: "좋음", color: "bg-blue-100 text-blue-700" };
-    if (rate >= 70)
-      return { label: "양호", color: "bg-yellow-100 text-yellow-700" };
-    if (rate >= 60)
-      return { label: "경고", color: "bg-orange-100 text-orange-700" };
-    return { label: "나쁨", color: "bg-red-100 text-red-700" };
+    if (rate >= 95) return { color: "bg-green-100 text-green-800", label: "우수" };
+    if (rate >= 85) return { color: "bg-blue-100 text-blue-800", label: "양호" };
+    if (rate >= 75) return { color: "bg-yellow-100 text-yellow-800", label: "보통" };
+    return { color: "bg-red-100 text-red-800", label: "개선필요" };
   };
+
+
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -473,11 +498,11 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
       <div className="p-6 space-y-6">
         {/* Simple Page Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="flex items-center justify-between">
+          <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                주문 내역
-              </h1>
+              주문 내역
+            </h1>
               <p className="text-gray-600 mb-3">
                 저장된 자재 계산 내역을 확인하고 관리하세요
               </p>
@@ -490,7 +515,7 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                     {filteredAndSortedOrders.length}건 표시 중
                   </span>
                 )}
-              </div>
+          </div>
             </div>
             
             {/* Main Action Buttons */}
@@ -499,15 +524,15 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                 <Download className="h-4 w-4 mr-2" />
                 엑셀 내보내기
               </Button>
-              <Button 
-                variant="outline" 
+            <Button
+              variant="outline"
                 size="sm" 
-                onClick={clearAllOrders}
-                disabled={savedOrders.length === 0}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                전체 삭제
-              </Button>
+              onClick={clearAllOrders}
+              disabled={savedOrders.length === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              전체 삭제
+            </Button>
             </div>
           </div>
         </div>
@@ -521,13 +546,13 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                 {/* Search Input */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input 
+                <Input
                     placeholder="제품명, 재질, 고객사로 검색..." 
                     className="pl-10 w-80"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
                 
                 {/* Date Filter */}
                 <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
@@ -591,28 +616,28 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                   {selectedOrders.length > 0 && `${selectedOrders.length}개 선택됨`}
                 </span>
                 
-                <Button 
+                        <Button
                   variant="outline" 
-                  size="sm" 
+                          size="sm"
                   onClick={handleBulkCopy}
                   disabled={selectedOrders.length === 0}
-                >
+                        >
                   <Copy className="h-4 w-4 mr-2" />
                   선택 복사
-                </Button>
+                        </Button>
                 
-                <Button 
+                        <Button
                   variant="outline" 
-                  size="sm" 
+                          size="sm"
                   onClick={handleBulkDelete}
                   disabled={selectedOrders.length === 0}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   선택 삭제
-                </Button>
-              </div>
-            </div>
+                        </Button>
+                      </div>
+                    </div>
           </CardContent>
         </Card>
 
@@ -635,15 +660,15 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                     <TableHead className="w-40">
                       <div className="flex items-center gap-2 font-semibold text-gray-700">
                         총 금액
-                        <Button
+                      <Button
                           variant="ghost"
-                          size="sm"
+                        size="sm"
                           className="h-auto p-0"
                           onClick={() => handleSort("totalCost")}
-                        >
+                      >
                           {getSortIcon("totalCost")}
-                        </Button>
-                      </div>
+                      </Button>
+                    </div>
                     </TableHead>
 
                     {/* Product Name Column */}
@@ -654,17 +679,17 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                           variant="ghost"
                           size="sm"
                           className="h-auto p-0"
-                          onClick={() => handleSort("productName")}
-                        >
+                        onClick={() => handleSort("productName")}
+                      >
                           {getSortIcon("productName")}
                         </Button>
-                      </div>
-                    </TableHead>
+                        </div>
+                      </TableHead>
 
                     {/* Material/Spec Column */}
                     <TableHead className="w-56">
                       <div className="font-semibold text-gray-700">재질/규격</div>
-                    </TableHead>
+                      </TableHead>
 
                     {/* Quantity/Bars Column */}
                     <TableHead className="w-40">
@@ -674,17 +699,17 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                           variant="ghost"
                           size="sm"
                           className="h-auto p-0"
-                          onClick={() => handleSort("quantity")}
-                        >
+                        onClick={() => handleSort("quantity")}
+                      >
                           {getSortIcon("quantity")}
                         </Button>
-                      </div>
-                    </TableHead>
+                        </div>
+                      </TableHead>
 
                     {/* Customer Column */}
                     <TableHead className="w-32">
                       <div className="font-semibold text-gray-700">고객사</div>
-                    </TableHead>
+                      </TableHead>
 
                     {/* Date Column */}
                     <TableHead className="w-28">
@@ -694,24 +719,24 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                           variant="ghost"
                           size="sm"
                           className="h-auto p-0"
-                          onClick={() => handleSort("timestamp")}
-                        >
+                        onClick={() => handleSort("timestamp")}
+                      >
                           {getSortIcon("timestamp")}
                         </Button>
-                      </div>
-                    </TableHead>
+                        </div>
+                      </TableHead>
 
                     {/* Action Column */}
                     <TableHead className="w-24 text-center">
                       <div className="font-semibold text-gray-700">작업</div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
 
-                <TableBody>
+                  <TableBody>
                   {filteredAndSortedOrders.length > 0 ? (
                     filteredAndSortedOrders.map((order, index) => (
-                      <TableRow 
+                      <TableRow
                         key={order.id}
                         className={cn(
                           "hover:bg-blue-50/50 transition-colors border-b border-gray-100 cursor-pointer",
@@ -736,8 +761,8 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                           <div className="space-y-1">
                             <div className="text-lg font-bold text-blue-600">
                               {formatCurrency(order.totalCost)}
-                            </div>
-                            <div className="text-xs text-gray-500">
+                          </div>
+                          <div className="text-xs text-gray-500">
                               ↳ {formatCurrency(order.unitCost)}/{order.isPlate ? "장" : "개"}
                             </div>
                           </div>
@@ -747,7 +772,7 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                         <TableCell>
                           <div className="font-semibold text-gray-900 truncate">
                             {order.productName}
-                          </div>
+                              </div>
                         </TableCell>
 
                         {/* Material/Spec */}
@@ -758,7 +783,7 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                               <span className="ml-1 text-gray-600">
                                 {order.isPlate ? "판재" : getShapeDisplayName(order.shape)}
                               </span>
-                            </div>
+                              </div>
                             <div className="text-sm text-gray-600 font-mono">
                               {order.isPlate 
                                 ? `${order.plateThickness}×${order.plateWidth}×${order.plateLength}mm`
@@ -767,7 +792,7 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                                   : `⌀${order.diameter}mm×${order.standardBarLength}mm`
                               }
                             </div>
-                          </div>
+                              </div>
                         </TableCell>
 
                         {/* Quantity/Bars */}
@@ -776,9 +801,9 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                             <div className="font-semibold text-gray-900">
                               {order.quantity.toLocaleString()}{order.isPlate ? "장" : "개"}
                               {!order.isPlate && ` / ${order.barsNeeded}봉`}
-                            </div>
+                          </div>
                             {!order.isPlate && (
-                              <Badge 
+                              <Badge
                                 className={cn(
                                   "text-xs",
                                   getUtilizationGrade(order.utilizationRate).color
@@ -786,7 +811,7 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                               >
                                 활용률: {order.utilizationRate.toFixed(1)}%
                               </Badge>
-                            )}
+                          )}
                           </div>
                         </TableCell>
 
@@ -810,15 +835,15 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                         {/* Actions */}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-col gap-1">
-                            <Button
-                              size="sm"
+                          <Button
+                            size="sm"
                               variant="outline"
                               className="h-7 px-2 text-xs hover:bg-blue-50"
                               onClick={() => handleEditOrder(order)}
-                            >
-                              <Edit className="h-3 w-3 mr-1" />
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
                               편집
-                            </Button>
+                          </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -838,58 +863,348 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                         <div className="flex flex-col items-center gap-4">
                           <Package className="h-16 w-16 text-gray-300" />
                           <div>
-                            <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                              저장된 주문이 없습니다
-                            </h3>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    저장된 주문이 없습니다
+                  </h3>
                             <p className="text-gray-500">
                               자재 계산기에서 계산 결과를 저장하면 여기에 표시됩니다
-                            </p>
-                          </div>
+                  </p>
+                </div>
                         </div>
                       </TableCell>
                     </TableRow>
-                  )}
+              )}
                 </TableBody>
               </Table>
             </div>
           </CardContent>
         </Card>
 
-        {/* Order Detail Dialog */}
-        <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        {/* Order Detail Dialog (View Mode) */}
+        <Dialog open={isDetailDialogOpen && !isEditMode} onOpenChange={setIsDetailDialogOpen}>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {isEditMode ? "주문 정보 수정" : "소재 계산서 상세 정보"}
-              </DialogTitle>
-              <DialogDescription>
-                {isEditMode
-                  ? "주문 정보를 수정하고 저장할 수 있습니다"
-                  : "저장된 계산 결과의 상세 정보를 확인할 수 있습니다"
-                }
-              </DialogDescription>
+              <div className="space-y-3">
+                {/* 금액과 제품명 */}
+                <DialogTitle className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-blue-600">
+                      💰 {formatCurrency(selectedOrder?.totalCost || 0)}
+                    </span>
+                    {selectedOrder?.scrapSavings && selectedOrder.scrapSavings > 0 && (
+                      <>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-2xl font-bold text-gray-700">
+                          {formatCurrency((selectedOrder.totalCost || 0) - (selectedOrder.scrapSavings || 0))}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {selectedOrder?.productName && selectedOrder.productName !== "0" && selectedOrder.productName.trim() !== "" && (
+                    <span className="text-lg font-semibold text-gray-900">
+                      {selectedOrder.productName}
+                    </span>
+                  )}
+                </DialogTitle>
+                
+                {/* 고객사와 납품일 */}
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span>
+                    <span className="font-medium">고객사:</span> {selectedOrder?.customer && selectedOrder.customer !== "0" && selectedOrder.customer.trim() !== "" ? selectedOrder.customer : "미지정"}
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <span>
+                    <span className="font-medium">납품일:</span> {
+                      selectedOrder?.deliveryDate 
+                        ? new Date(selectedOrder.deliveryDate).toLocaleDateString("ko-KR")
+                        : "미설정"
+                    }
+                  </span>
+                </div>
+              </div>
             </DialogHeader>
 
             {selectedOrder && (
-              <div className="space-y-6">
-                {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+                {/* 기본 정보 카드 */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-gray-900">
-                      기본 정보
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      📋 기본 정보
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <InfoRow 
+                      label="재질" 
+                      value={`${getMaterialTypeDisplay(selectedOrder.materialType)} ${getShapeDisplayName(selectedOrder.shape)}`} 
+                    />
+                    <InfoRow 
+                      label="규격" 
+                      value={selectedOrder.isPlate 
+                        ? `${selectedOrder.plateThickness}×${selectedOrder.plateWidth}×${selectedOrder.plateLength}mm`
+                        : selectedOrder.shape === "rectangle"
+                          ? `${selectedOrder.width}×${selectedOrder.height}mm`
+                          : `⌀${selectedOrder.diameter}mm`
+                      } 
+                    />
+                    {/* 봉재 길이 정보 추가 */}
+                    {!selectedOrder.isPlate && (
+                      <InfoRow 
+                        label="봉재 길이" 
+                        value={`${selectedOrder.standardBarLength}mm`} 
+                      />
+                    )}
+                    {/* 제품 길이 정보 추가 */}
+                    {!selectedOrder.isPlate && selectedOrder.productLength && (
+                      <InfoRow 
+                        label="제품 길이" 
+                        value={`${selectedOrder.productLength}mm`} 
+                      />
+                    )}
+                    <InfoRow 
+                      label="수량" 
+                      value={`${selectedOrder.quantity}${selectedOrder.isPlate ? "장" : "개"}${!selectedOrder.isPlate ? ` / ${selectedOrder.barsNeeded}봉` : ""}`} 
+                    />
+                    {!selectedOrder.isPlate && (
+                      <InfoRow 
+                        label="활용률" 
+                        value={
+                          <Badge className={getUtilizationGrade(selectedOrder.utilizationRate).color}>
+                            {selectedOrder.utilizationRate.toFixed(1)}%
+                          </Badge>
+                        } 
+                      />
+                    )}
+                    <InfoRow 
+                      label="저장일시" 
+                      value={formatDate(selectedOrder.timestamp)} 
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* 비용 정보 카드 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      💰 비용 정보
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <InfoRow 
+                      label="원가 소재비" 
+                      value={
+                        <span className="text-lg font-bold text-blue-600">
+                          {formatCurrency(selectedOrder.totalCost)}
+                        </span>
+                      } 
+                    />
+                    {selectedOrder.scrapSavings && selectedOrder.scrapSavings > 0 && (
+                      <>
+                        <InfoRow 
+                          label="스크랩 반영" 
+                          value={
+                            <span className="text-lg font-bold text-gray-700">
+                              {formatCurrency(selectedOrder.totalCost - selectedOrder.scrapSavings)}
+                            </span>
+                          } 
+                        />
+                        <InfoRow 
+                          label="스크랩 차액" 
+                          value={formatCurrency(selectedOrder.scrapSavings)} 
+                        />
+                      </>
+                    )}
+                    <InfoRow 
+                      label="단가" 
+                      value={selectedOrder.scrapSavings && selectedOrder.scrapSavings > 0 ? (
+                        <div className="space-y-1">
+                          <div className="text-gray-600 text-sm">
+                            원가: {formatCurrency(selectedOrder.unitCost)}
+                          </div>
+                          <div className="font-semibold">
+                            반영: {formatCurrency((selectedOrder.totalCost - selectedOrder.scrapSavings) / selectedOrder.quantity)}
+                          </div>
+                        </div>
+                      ) : (
+                        `${formatCurrency(selectedOrder.unitCost)}/${selectedOrder.isPlate ? "장" : "개"}`
+                      )} 
+                    />
+                    <InfoRow 
+                      label="고객사" 
+                      value={selectedOrder.customer && selectedOrder.customer !== "0" && selectedOrder.customer.trim() !== "" ? selectedOrder.customer : "미지정"} 
+                    />
+                    <InfoRow 
+                      label="납품 단가" 
+                      value={selectedOrder.deliveryUnitPrice && selectedOrder.deliveryUnitPrice > 0
+                        ? `${formatNumber(selectedOrder.deliveryUnitPrice)}원/${selectedOrder.isPlate ? "장" : "개"}`
+                        : "미설정"
+                      } 
+                    />
+                    {selectedOrder.deliveryUnitPrice && selectedOrder.deliveryUnitPrice > 0 && (
+                      <InfoRow 
+                        label="총 납품가액" 
+                        value={
+                          <span className="text-lg font-bold text-blue-600">
+                            {formatNumber(selectedOrder.deliveryUnitPrice * selectedOrder.quantity)}원
+                          </span>
+                        } 
+                      />
+                    )}
+                    <InfoRow 
+                      label="납기일" 
+                      value={selectedOrder.deliveryDate 
+                        ? new Date(selectedOrder.deliveryDate).toLocaleDateString("ko-KR")
+                        : "미설정"
+                      } 
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+ 
+            {/* 상세 정보 펼치기 섹션 */}
+            {selectedOrder && (
+              <div className="mt-6">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsDetailExpanded(!isDetailExpanded)}
+                  className="w-full flex items-center justify-center gap-2 py-3 text-gray-600 hover:text-gray-800"
+                >
+                  {isDetailExpanded ? "▲ 상세 정보 숨기기" : "▼ 상세 정보 보기 (치수, 계산, 스크랩)"}
+                </Button>
+                
+                <Collapsible open={isDetailExpanded} onOpenChange={setIsDetailExpanded}>
+                  <CollapsibleContent>
+                    <div className={`grid grid-cols-1 gap-4 mt-4 ${
+                      !selectedOrder.isPlate && 
+                      selectedOrder.scrapSavings && selectedOrder.scrapSavings > 0
+                        ? "md:grid-cols-3" 
+                        : "md:grid-cols-2"
+                    }`}>
+                      {/* 치수 상세 */}
+                      {!selectedOrder.isPlate && (
+                        <Card className="bg-blue-50 border-blue-200">
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              🔧 치수 상세
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2 text-sm">
+                            <InfoRow label="제품 길이" value={selectedOrder.productLength && parseFloat(selectedOrder.productLength) > 0 ? `${selectedOrder.productLength}mm` : "-"} />
+                            <InfoRow label="절삭 손실" value={selectedOrder.cuttingLoss && parseFloat(selectedOrder.cuttingLoss) > 0 ? `${selectedOrder.cuttingLoss}mm` : "-"} />
+                            <InfoRow label="단위 길이" value={selectedOrder.productLength && parseFloat(selectedOrder.productLength) > 0 ? `${(parseFloat(selectedOrder.productLength || "0") + parseFloat(selectedOrder.cuttingLoss || "0")).toFixed(1)}mm` : "-"} />
+                            <InfoRow label="헤드 절삭" value={selectedOrder.headCut && parseFloat(selectedOrder.headCut) > 0 ? `${selectedOrder.headCut}mm` : "-"} />
+                            <InfoRow label="테일 절삭" value={selectedOrder.tailCut && parseFloat(selectedOrder.tailCut) > 0 ? `${selectedOrder.tailCut}mm` : "-"} />
+                            <InfoRow label="사용 가능 길이" value={selectedOrder.productLength && parseFloat(selectedOrder.productLength) > 0 ? `${(selectedOrder.standardBarLength - parseFloat(selectedOrder.headCut || "0") - parseFloat(selectedOrder.tailCut || "0")).toFixed(0)}mm` : "-"} />
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* 계산 분석 */}
+                      {!selectedOrder.isPlate && (
+                        <Card className="bg-gray-50 border-gray-200">
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              📊 계산 분석
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2 text-sm">
+                            {selectedOrder.productLength && parseFloat(selectedOrder.productLength) > 0 && (
+                              <InfoRow label="봉재당 생산" value={`${Math.floor((selectedOrder.standardBarLength - parseFloat(selectedOrder.headCut || "0") - parseFloat(selectedOrder.tailCut || "0")) / (parseFloat(selectedOrder.productLength || "0") + parseFloat(selectedOrder.cuttingLoss || "0")))}개`} />
+                            )}
+                            <InfoRow label="총 중량" value={selectedOrder.totalWeight && selectedOrder.totalWeight > 0 ? `${selectedOrder.totalWeight.toFixed(3)}kg` : "-"} />
+                            <InfoRow label="제품 중량" value={selectedOrder.productWeight && selectedOrder.productWeight !== "0" && parseFloat(selectedOrder.productWeight) > 0 ? `${selectedOrder.productWeight}g` : "-"} />
+                            <InfoRow label="실제 제품 중량" value={selectedOrder.actualProductWeight && selectedOrder.actualProductWeight !== "0" && parseFloat(selectedOrder.actualProductWeight) > 0 ? `${selectedOrder.actualProductWeight}g` : "-"} />
+                            <InfoRow label="밀도" value={selectedOrder.materialDensity && selectedOrder.materialDensity !== "0" && parseFloat(selectedOrder.materialDensity) > 0 ? `${selectedOrder.materialDensity}g/cm³` : "-"} />
+                            <InfoRow label="재료 단가" value={selectedOrder.materialPrice && selectedOrder.materialPrice > 0 ? `${formatNumber(selectedOrder.materialPrice)}원/kg` : "-"} />
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* 스크랩 데이터 (중립적 표현) */}
+                      {!selectedOrder.isPlate && 
+                       selectedOrder.scrapSavings && selectedOrder.scrapSavings > 0 && (
+                        <Card className="bg-gray-50 border-gray-200">
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              ♻️ 스크랩 데이터
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2 text-sm">
+                            <InfoRow label="스크랩 중량" value={selectedOrder.scrapWeight && selectedOrder.scrapWeight > 0 ? `${selectedOrder.scrapWeight.toFixed(3)}kg` : "-"} />
+                            <InfoRow label="환산 비율" value={`${selectedOrder.recoveryRatio || 100}%`} />
+                            <InfoRow label="스크랩 단가" value={selectedOrder.scrapUnitPrice && selectedOrder.scrapUnitPrice > 0 ? `${formatNumber(selectedOrder.scrapUnitPrice)}원/kg` : "-"} />
+                            <InfoRow label="스크랩 가치" value={formatCurrency(selectedOrder.scrapSavings)} />
+                            <InfoRow label="반영 비율" value={`${((selectedOrder.scrapSavings / selectedOrder.totalCost) * 100).toFixed(1)}%`} />
+                            <InfoRow label="적용 후 단가" value={formatCurrency((selectedOrder.totalCost - selectedOrder.scrapSavings) / selectedOrder.quantity)} />
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            )}
+
+            {/* 액션 버튼들 */}
+            {selectedOrder && (
+              <div className="flex justify-center gap-3 pt-4 border-t">
+                <Button onClick={() => {
+                  setEditedOrder({ ...selectedOrder });
+                  setIsEditMode(true);
+                }} className="flex-1 max-w-32">
+                  <Edit className="h-4 w-4 mr-2" />
+                  📝 편집
+                </Button>
+                <Button variant="outline" onClick={() => handleCopyOrder(selectedOrder)} className="flex-1 max-w-32">
+                  <Copy className="h-4 w-4 mr-2" />
+                  📋 복사
+                </Button>
+                <Button variant="outline" onClick={() => deleteOrder(selectedOrder.id)} className="flex-1 max-w-32 text-red-600 hover:text-red-700">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  🗑️ 삭제
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Order Edit Dialog (Edit Mode) */}
+        <Dialog open={isDetailDialogOpen && isEditMode} onOpenChange={() => {
+          setIsEditMode(false);
+          setIsDetailDialogOpen(false);
+        }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                ✏️ 주문 편집 - {editedOrder?.productName}
+              </DialogTitle>
+              <DialogDescription>
+                주문 정보를 수정하고 저장할 수 있습니다
+              </DialogDescription>
+            </DialogHeader>
+
+            {editedOrder && (
+              <div className="space-y-6 my-6">
+                {/* 편집 가능한 정보 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      📝 편집 가능한 정보
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {isEditMode ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="edit-productName">제품명</Label>
                             <Input
                               id="edit-productName"
                               value={editedOrder?.productName || ""}
-                              onChange={(e) => setEditedOrder(prev => prev ? {...prev, productName: e.target.value} : null)}
+                          onChange={(e) => setEditedOrder(prev => 
+                            prev ? {...prev, productName: e.target.value} : null
+                          )}
+                          placeholder="제품명을 입력하세요"
                             />
                           </div>
 
@@ -898,20 +1213,26 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                             <Input
                               id="edit-customer"
                               value={editedOrder?.customer || ""}
-                              onChange={(e) => setEditedOrder(prev => prev ? {...prev, customer: e.target.value} : null)}
+                          onChange={(e) => setEditedOrder(prev => 
+                            prev ? {...prev, customer: e.target.value} : null
+                          )}
                               placeholder="고객사명을 입력하세요"
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="edit-deliveryUnitPrice">납품 단가 (원)</Label>
+                        <Label htmlFor="edit-deliveryUnitPrice">
+                          납품 단가 (원/{editedOrder?.isPlate ? "장" : "개"})
+                        </Label>
                             <Input
                               id="edit-deliveryUnitPrice"
                               type="number"
                               value={editedOrder?.deliveryUnitPrice || ""}
-                              onChange={(e) => setEditedOrder(prev => prev ? {...prev, deliveryUnitPrice: Number(e.target.value)} : null)}
+                          onChange={(e) => setEditedOrder(prev => 
+                            prev ? {...prev, deliveryUnitPrice: Number(e.target.value) || undefined} : null
+                          )}
                               placeholder="납품 단가를 입력하세요"
                             />
                           </div>
@@ -921,198 +1242,110 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                             <Input
                               id="edit-deliveryDate"
                               type="date"
-                              value={editedOrder?.deliveryDate ? new Date(editedOrder.deliveryDate).toISOString().split('T')[0] : ""}
-                              onChange={(e) => setEditedOrder(prev => prev ? {...prev, deliveryDate: e.target.value ? new Date(e.target.value) : undefined} : null)}
+                          value={editedOrder?.deliveryDate 
+                            ? new Date(editedOrder.deliveryDate).toISOString().split('T')[0] 
+                            : ""
+                          }
+                          onChange={(e) => setEditedOrder(prev => 
+                            prev ? {...prev, deliveryDate: e.target.value ? new Date(e.target.value) : undefined} : null
+                          )}
                             />
                           </div>
                         </div>
 
-                        {editedOrder?.deliveryUnitPrice && (
-                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                            <div className="text-sm text-blue-700 mb-1">총 납품가액 (자동 계산)</div>
-                            <div className="text-lg font-semibold text-blue-700">
-                              {formatNumber((editedOrder.deliveryUnitPrice || 0) * (editedOrder.quantity || 0))} 원
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t">
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-600 font-semibold w-16 flex-shrink-0">소재</span>
-                              <span className="font-medium">{getMaterialTypeDisplay(editedOrder?.materialType || "")}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-600 font-semibold w-16 flex-shrink-0">규격</span>
-                              <span className="font-medium">
-                                {editedOrder?.isPlate
-                                  ? `${editedOrder?.plateThickness} x ${editedOrder?.plateWidth} x ${editedOrder?.plateLength}`
-                                  : editedOrder?.shape === "rectangle"
-                                    ? `${editedOrder?.width}x${editedOrder?.height}mm`
-                                    : `${editedOrder?.diameter}mm`}
+                                        {/* 실시간 계산 결과 */}
+                    {editedOrder?.deliveryUnitPrice && editedOrder.deliveryUnitPrice > 0 && (
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-blue-700">💰 총 납품가액</span>
+                          <span className="text-xl font-bold text-blue-700">
+                            {formatNumber(editedOrder.deliveryUnitPrice * editedOrder.quantity)}원
                               </span>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-600 font-semibold w-16 flex-shrink-0">수량</span>
-                              <span className="font-medium">{editedOrder?.quantity} {editedOrder?.isPlate ? "장" : "개"}</span>
+                        <div className="text-xs text-blue-600 mt-1">
+                          {formatNumber(editedOrder?.deliveryUnitPrice || 0)}원 × {editedOrder?.quantity || 0}{editedOrder?.isPlate ? "장" : "개"}
                             </div>
-                            {!editedOrder?.isPlate && (
-                              <div className="flex items-center gap-3">
-                                <span className="text-gray-600 font-semibold w-16 flex-shrink-0">필요 봉수</span>
-                                <span className="font-medium">{editedOrder?.barsNeeded} 봉</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-gray-600 font-semibold w-16 flex-shrink-0">제품명</span>
-                          <span className="font-medium">{selectedOrder?.productName}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-gray-600 font-semibold w-16 flex-shrink-0">소재</span>
-                          <span className="font-medium">{getMaterialTypeDisplay(selectedOrder?.materialType || "")}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-gray-600 font-semibold w-16 flex-shrink-0">{selectedOrder?.isPlate ? "규격" : "직경"}</span>
-                          <span className="font-medium">
-                            {selectedOrder?.isPlate
-                              ? `${selectedOrder?.plateThickness} x ${selectedOrder?.plateWidth} x ${selectedOrder?.plateLength}`
-                              : selectedOrder?.shape === "rectangle"
-                                ? `${selectedOrder?.width}x${selectedOrder?.height}mm`
-                                : `${selectedOrder?.diameter}mm`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-gray-600 font-semibold w-16 flex-shrink-0">고객사</span>
-                          <span className="font-medium">{selectedOrder?.customer || "-"}</span>
-                        </div>
-                        {!selectedOrder?.isPlate && (
-                          <div className="flex items-center gap-3 text-sm">
-                            <span className="text-gray-600 font-semibold w-16 flex-shrink-0">필요 봉수</span>
-                            <span className="font-medium">{selectedOrder?.barsNeeded} 봉</span>
-                          </div>
-                        )}
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {/* Calculation Summary */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-gray-900">
-                      계산 요약
+                {/* 계산 정보 (읽기 전용) */}
+                <Card className="bg-gray-50">
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      📊 계산 정보 (수정 불가)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-600 mb-1">수량</div>
-                        <div className="text-lg font-semibold text-gray-900">
-                          {selectedOrder.quantity}{" "}
-                          {selectedOrder.isPlate ? "장" : "개"}
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-600 mb-1">
-                          개당 소재비
-                        </div>
-                        <div className="text-lg font-semibold text-gray-900">
-                          {formatCurrency(selectedOrder.unitCost)}
-                        </div>
-                      </div>
-
-                      <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-200">
-                        <div className="text-xs text-blue-700 mb-1">
-                          총 소재비
-                        </div>
-                        <div className="text-lg font-semibold text-blue-700">
-                          {formatCurrency(selectedOrder.totalCost)}
-                        </div>
-                      </div>
-
-                      {!selectedOrder.isPlate && (
-                        <div className="bg-green-50 rounded-lg p-3 text-center border border-green-200">
-                          <div className="text-xs text-green-700 mb-1">
-                            소재 활용률
-                          </div>
-                          <div className="text-lg font-semibold text-green-700">
-                            {selectedOrder.utilizationRate.toFixed(1)}%
-                          </div>
-                        </div>
+                    <div className="space-y-3 text-sm">
+                      {/* 기본 규격 정보 */}
+                      <div className="flex flex-wrap items-center gap-1 text-gray-700">
+                        <span className="font-medium">{getMaterialTypeDisplay(editedOrder?.materialType || "")}</span>
+                        <span>•</span>
+                        <span>{editedOrder?.isPlate ? "판재" : getShapeDisplayName(editedOrder?.shape || "")}</span>
+                        <span>•</span>
+                        <span className="font-mono">
+                          {editedOrder?.isPlate 
+                            ? `${editedOrder?.plateThickness}×${editedOrder?.plateWidth}×${editedOrder?.plateLength}mm`
+                            : editedOrder?.shape === "rectangle"
+                              ? `${editedOrder?.width}×${editedOrder?.height}mm`
+                              : `⌀${editedOrder?.diameter}mm`
+                          }
+                        </span>
+                        {!editedOrder?.isPlate && editedOrder?.productLength && (
+                          <>
+                            <span>•</span>
+                            <span>제품길이: <span className="font-mono">{editedOrder.productLength}mm</span></span>
+                          </>
                       )}
                     </div>
 
-                    {/* Scrap Information (if available) - Hidden as properties don't exist */}
-                  </CardContent>
-                </Card>
-
-                {/* Additional Information (Optional) */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-gray-900">
-                      추가 정보 (선택사항)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-xs text-gray-600 mb-1">
-                          납품 단가
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {(isEditMode ? editedOrder : selectedOrder)?.deliveryUnitPrice
-                            ? `${formatNumber((isEditMode ? editedOrder : selectedOrder)?.deliveryUnitPrice || 0)} 원`
-                            : "미설정"}
-                        </div>
+                      {/* 수량 정보 */}
+                      <div className="flex items-center gap-4 text-gray-700">
+                        <span className="font-semibold">{editedOrder?.quantity?.toLocaleString()}{editedOrder?.isPlate ? "장" : "개"}</span>
+                        {!editedOrder?.isPlate && (
+                          <>
+                            <span>•</span>
+                            <span className="font-semibold">{editedOrder?.barsNeeded}봉</span>
+                            <span>•</span>
+                            <span>활용률: <span className="text-blue-600 font-semibold">{editedOrder?.utilizationRate?.toFixed(1)}%</span></span>
+                            {editedOrder?.scrapSavings && editedOrder.scrapSavings > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>봉재당: <span className="font-semibold">{Math.floor((editedOrder?.standardBarLength - (parseFloat(editedOrder?.headCut || "0")) - (parseFloat(editedOrder?.tailCut || "0"))) / ((parseFloat(editedOrder?.productLength || "0")) + (parseFloat(editedOrder?.cuttingLoss || "0"))))}개</span></span>
+                              </>
+                            )}
+                          </>
+                        )}
                       </div>
 
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-xs text-gray-600 mb-1">
-                          총 납품가액
+                      {/* 비용 정보 (스크랩 중립적 표현) */}
+                      <div className="pt-2 border-t border-gray-200">
+                        {editedOrder?.scrapSavings && editedOrder.scrapSavings > 0 ? (
+                          <div className="flex items-center gap-4">
+                            <span className="text-blue-600 font-medium">
+                              원가: {formatCurrency(editedOrder?.totalCost || 0)}
+                            </span>
+                            <span className="text-gray-400">|</span>
+                            <span className="text-gray-700 font-medium">
+                              스크랩 반영: {formatCurrency((editedOrder?.totalCost || 0) - (editedOrder?.scrapSavings || 0))}
+                            </span>
                         </div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {(isEditMode ? editedOrder : selectedOrder)?.deliveryUnitPrice
-                            ? `${formatNumber(((isEditMode ? editedOrder : selectedOrder)?.deliveryUnitPrice || 0) * ((isEditMode ? editedOrder : selectedOrder)?.quantity || 0))} 원`
-                            : "미설정"}
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-blue-600 font-medium">총 소재비:</span>
+                            <span className="text-blue-600 font-bold">{formatCurrency(editedOrder?.totalCost || 0)}</span>
                         </div>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-xs text-gray-600 mb-1">납기일</div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {(isEditMode ? editedOrder : selectedOrder)?.deliveryDate
-                            ? new Date((isEditMode ? editedOrder : selectedOrder)?.deliveryDate || new Date()).toLocaleDateString("ko-KR")
-                            : "미설정"}
-                        </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Timestamp */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-gray-900">
-                      저장 정보
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="h-4 w-4" />
-                      <span>
-                        저장일시: {formatDate((isEditMode ? editedOrder : selectedOrder)?.timestamp || new Date())}
-                      </span>
                     </div>
-                  </CardContent>
-                </Card>
+            )}
 
-                {/* Action Buttons */}
-                {isEditMode && (
+            {/* 액션 버튼들 */}
                   <div className="flex justify-end gap-3 pt-4 border-t">
                     <Button variant="outline" onClick={handleCancelEdit}>
                       <X className="h-4 w-4 mr-2" />
@@ -1120,12 +1353,9 @@ ${order.customer ? `고객사: ${order.customer}` : ''}
                     </Button>
                     <Button onClick={handleSaveEdit}>
                       <Save className="h-4 w-4 mr-2" />
-                      저장
+                💾 저장
                     </Button>
                   </div>
-                )}
-              </div>
-            )}
           </DialogContent>
         </Dialog>
       </div>

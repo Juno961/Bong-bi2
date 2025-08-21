@@ -39,9 +39,19 @@ interface CalculationResults {
   scrapSavings: number;
   wastage: number;
   costPerPiece: number;
+  materialTotalWeight?: number;
   totalWeight: number;
   realCost?: number;
   scrapWeight?: number;
+  warnings?: ValidationWarning[];
+  suggestions?: string[];
+}
+
+interface ValidationWarning {
+  type: string;
+  field?: string;
+  message: string;
+  suggestion?: string;
 }
 
 interface FormData {
@@ -258,8 +268,10 @@ export const ResultsPanel = ({
   const piecesPerBar = Math.floor(usableBarLength / unitLength);
 
   // Fix weight calculations:
-  // results.totalWeight is already the total weight of all bars needed
-  const barWeight = results.totalWeight / results.totalBarsNeeded; // Weight per bar in kg
+  // results.materialTotalWeight: 봉재 총중량 (kg)
+  // results.totalWeight: 제품 총중량 (kg) 
+  const materialWeight = results.materialTotalWeight || results.totalWeight; // 호환성을 위해 fallback
+  const barWeight = materialWeight / results.totalBarsNeeded; // Weight per bar in kg
 
   // Calculate individual product weight properly:
   // If user provided product weight, use it; otherwise calculate from material properties
@@ -360,7 +372,55 @@ export const ResultsPanel = ({
         </CardContent>
       </Card>
 
-      {/* 2. Key Metrics Grid - 핵심 지표 2x2 */}
+      {/* 2. Warnings and Suggestions - 경고 및 제안 사항 */}
+      {(results.warnings && results.warnings.length > 0) || (results.suggestions && results.suggestions.length > 0) ? (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            {results.warnings && results.warnings.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-amber-800 mb-2 flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  ⚠️ 검증 경고
+                </h3>
+                <div className="space-y-2">
+                  {results.warnings.map((warning, index) => (
+                    <div key={index} className={cn(
+                      "p-3 rounded-lg text-sm",
+                      warning.type === "error" ? "bg-red-100 text-red-800 border border-red-200" :
+                      warning.type === "warning" ? "bg-amber-100 text-amber-800 border border-amber-200" :
+                      "bg-blue-100 text-blue-800 border border-blue-200"
+                    )}>
+                      <div className="font-medium">{warning.message}</div>
+                      {warning.suggestion && (
+                        <div className="text-xs mt-1 opacity-75">
+                          💡 {warning.suggestion}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {results.suggestions && results.suggestions.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  💡 최적화 제안
+                </h3>
+                <div className="space-y-1">
+                  {results.suggestions.map((suggestion, index) => (
+                    <div key={index} className="p-2 bg-blue-100 text-blue-800 rounded text-sm border border-blue-200">
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* 3. Key Metrics Grid - 핵심 지표 2x2 */}
       <div className="grid grid-cols-2 gap-4">
         {/* 제품당 가격 */}
         <Card className="p-4">
@@ -521,8 +581,14 @@ export const ResultsPanel = ({
                 <h4 className="font-semibold text-gray-800">⚖️ 길이/중량 상세</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                    <div className="text-xs text-blue-700 mb-1">총 중량</div>
+                    <div className="text-xs text-blue-700 mb-1">봉재 총중량</div>
                     <div className="text-sm font-semibold text-blue-800">
+                      {formatWeight(materialWeight)}
+                    </div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <div className="text-xs text-green-700 mb-1">제품 총중량</div>
+                    <div className="text-sm font-semibold text-green-800">
                       {formatWeight(results.totalWeight)}
                     </div>
                   </div>

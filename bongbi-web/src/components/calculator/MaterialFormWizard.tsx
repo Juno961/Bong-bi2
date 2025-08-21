@@ -104,7 +104,7 @@ export const MaterialFormWizard = ({
     customer: "",
     productWeight: "",
     actualProductWeight: "",
-    recoveryRatio: "",
+    recoveryRatio: "100",
     scrapUnitPrice: "읽기 전용",
     scrapPrice: "",
     standardBarLength: "",
@@ -177,7 +177,7 @@ export const MaterialFormWizard = ({
             ...prev,
             headCut: defaults.headCut?.toString() || "20",
             tailCut: defaults.tailCut?.toString() || "250",
-            recoveryRatio: defaults.scrapRatio?.toString() || "",
+            recoveryRatio: defaults.scrapRatio?.toString() || "100",
           }));
         } catch (error) {
           console.error("Failed to load default values:", error);
@@ -192,7 +192,7 @@ export const MaterialFormWizard = ({
         ...prev,
         headCut: e.detail.headCut?.toString() || "20",
         tailCut: e.detail.tailCut?.toString() || "250",
-        recoveryRatio: e.detail.scrapRatio?.toString() || "",
+        recoveryRatio: e.detail.scrapRatio?.toString() || "100",
       }));
     };
 
@@ -310,7 +310,7 @@ export const MaterialFormWizard = ({
       customer: "",
       productWeight: "",
       actualProductWeight: "",
-      recoveryRatio: "",
+      recoveryRatio: "100",
       scrapUnitPrice: "읽기 전용",
       scrapPrice: formData.scrapPrice, // Keep current scrap price
       standardBarLength: formData.standardBarLength, // Keep material defaults

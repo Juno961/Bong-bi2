@@ -54,9 +54,12 @@ interface CalculationResults {
   scrapSavings: number;
   wastage: number;
   costPerPiece: number;
+  materialTotalWeight?: number;
   totalWeight: number;
   realCost?: number;
   scrapWeight?: number;
+  warnings?: any[];
+  suggestions?: string[];
 }
 
 const Calculator = () => {
@@ -188,6 +191,8 @@ const Calculator = () => {
           costPerPiece: resp.unitCost,
           totalWeight: resp.totalWeight,
           realCost: resp.realCost,
+          warnings: resp.warnings,
+          suggestions: resp.suggestions,
         };
         setResults(calculationResults);
       } else {
@@ -201,9 +206,12 @@ const Calculator = () => {
           scrapSavings: resp.scrapSavings,
           wastage: resp.wastage,
           costPerPiece: resp.unitCost,
+          materialTotalWeight: resp.materialTotalWeight,
           totalWeight: resp.totalWeight,
           realCost: resp.realCost,
-          scrapWeight: (resp as any).scrapWeight,
+          scrapWeight: resp.scrapWeight,
+          warnings: resp.warnings,
+          suggestions: resp.suggestions,
         };
         setResults(calculationResults);
       }
@@ -359,8 +367,8 @@ const Calculator = () => {
   return (
     <DashboardLayout>
       <div className="flex flex-col lg:flex-row lg:h-screen">
-        {/* Left Panel - Input Form (1/3 on desktop, full width on mobile) */}
-        <div className="w-full lg:w-1/3 bg-[#F7F8FA] lg:border-r border-gray-200 flex flex-col">
+        {/* Left Panel - Input Form (4/10 on desktop, full width on mobile) */}
+        <div className="w-full lg:w-2/5 bg-[#F7F8FA] lg:border-r border-gray-200 flex flex-col">
           <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
             {/* Material Type Tab Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-1 material-type-tabs">
@@ -403,8 +411,8 @@ const Calculator = () => {
           </div>
         </div>
 
-        {/* Right Panel - Results (2/3 on desktop, full width below input on mobile) */}
-        <div className="w-full lg:w-2/3 bg-white flex flex-col">
+        {/* Right Panel - Results (6/10 on desktop, full width below input on mobile) */}
+        <div className="w-full lg:w-3/5 bg-white flex flex-col">
           {/* Header */}
           <div className="p-4 lg:p-6 bg-[#F7F8FA] border-b border-gray-200">
             <div className="flex items-center justify-between">

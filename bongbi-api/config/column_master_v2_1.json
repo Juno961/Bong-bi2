@@ -1,7 +1,7 @@
 {
-  "version": "builder_full_v2.1",
-  "last_updated": "2025-08-08",
-  "description": "메타데이터 확장(필수 조건, 단위 정책, 제약, 별칭, 스코프, 연관 컬럼) 및 단위 경계 고정 정책 반영",
+  "version": "builder_full_v2.2",
+  "last_updated": "2025-08-21",
+  "description": "단위 수정(productWeight kg→g), 컬럼 정리(scrapPrice 삭제), 봉재 총중량 추가(materialTotalWeight)",
   "columns": [
     {
       "key": "productName",
@@ -422,9 +422,7 @@
       "constraints": {
         "min": 0
       },
-      "aliases": [
-        "scrapPrice"
-      ],
+
       "default_source": "user_input_or_calculated",
       "precision": {
         "rounding": 3
@@ -662,15 +660,15 @@
       "key": "productWeight",
       "label_kr": "제품중량",
       "type": "float",
-      "unit": "kg",
+      "unit": "g",
       "description": "단위 제품 중량",
       "source": "입력",
       "group": "기본 정보",
       "scope": "input",
       "unit_detail": {
-        "unit_in": "kg",
-        "unit_calc": "kg",
-        "unit_out": "kg"
+        "unit_in": "g",
+        "unit_calc": "g",
+        "unit_out": "g"
       },
       "required_when": {
         "rod": false,
@@ -732,34 +730,6 @@
         "unit_in": "kg",
         "unit_calc": "kg",
         "unit_out": "kg"
-      },
-      "required_when": {
-        "rod": false,
-        "sheet": false
-      },
-      "default_source": "user_input_or_calculated",
-      "precision": {
-        "rounding": 3
-      },
-      "deprecation": {
-        "deprecated": false,
-        "replacement": null,
-        "note": null
-      }
-    },
-    {
-      "key": "scrapPrice",
-      "label_kr": "스크랩금액",
-      "type": "float",
-      "unit": "₩",
-      "description": "스크랩 회수로 절감된 금액",
-      "source": "입력",
-      "group": "스크랩 관련",
-      "scope": "input",
-      "unit_detail": {
-        "unit_in": "₩",
-        "unit_calc": "₩",
-        "unit_out": "₩"
       },
       "required_when": {
         "rod": false,
@@ -957,11 +927,53 @@
       }
     },
     {
-      "key": "totalWeight",
-      "label_kr": "총 중량",
+      "key": "materialTotalWeight",
+      "label_kr": "봉재 총중량",
       "type": "float",
       "unit": "kg",
-      "description": "전체 제품의 총 중량",
+      "description": "필요한 모든 봉재의 총 중량 (구매해야 할 원재료 전체 중량)",
+      "source": "계산",
+      "group": "계산 결과",
+      "scope": "output",
+      "unit_detail": {
+        "unit_in": "kg",
+        "unit_calc": "kg",
+        "unit_out": "kg"
+      },
+      "required_when": {
+        "rod": false,
+        "sheet": false
+      },
+      "constraints": {
+        "min": 0
+      },
+      "default_source": "user_input_or_calculated",
+      "precision": {
+        "rounding": 3
+      },
+      "related_columns": [
+        "diameter",
+        "height",
+        "materialDensity",
+        "plateLength",
+        "plateThickness",
+        "plateWidth",
+        "standardBarLength",
+        "barsNeeded",
+        "width"
+      ],
+      "deprecation": {
+        "deprecated": false,
+        "replacement": null,
+        "note": null
+      }
+    },
+    {
+      "key": "totalWeight",
+      "label_kr": "제품 총중량",
+      "type": "float",
+      "unit": "kg",
+      "description": "만들어질 제품들의 총 중량 (productWeight × quantity)",
       "source": "계산",
       "group": "계산 결과",
       "scope": "output",
@@ -1176,9 +1188,10 @@
         "quantity"
       ],
       "scrap_condition": [
-        "actualProductWeight > 0",
-        "recoveryRatio > 0",
-        "scrapUnitPrice > 0"
+        "스크랩계산토글 == ON",
+        "actualProductWeight > 0 (사용자 직접 입력 필수)",
+        "recoveryRatio > 0 (기본값 적용 가능)",
+        "scrapUnitPrice > 0 (기본값 적용 가능)"
       ]
     },
     "naming": {
