@@ -91,6 +91,7 @@ interface ResultsPanelProps {
   saveHistoryEnabled?: boolean;
   onPermanentSave?: () => void;
   onProductNameUpdate?: () => void;
+  isRecentlySaved?: boolean;
 }
 
 export const ResultsPanel = ({
@@ -103,6 +104,7 @@ export const ResultsPanel = ({
   saveHistoryEnabled = false,
   onPermanentSave,
   onProductNameUpdate,
+  isRecentlySaved = false,
 }: ResultsPanelProps) => {
   const [editableBarsNeeded, setEditableBarsNeeded] = useState<number>(0);
   const [isDetailedOpen, setIsDetailedOpen] = useState(false);
@@ -215,18 +217,65 @@ export const ResultsPanel = ({
     };
 
     if (autoSaveEnabled) {
+      console.log("🔍 ResultsPanel 자동 저장 모드 - 중복 체크 시작");
+      
       // Auto-save mode: Save to both permanent and temporary storage
-      // 1. Save to localStorage (permanent storage)
+      // 1. 중복 체크를 위한 해시 생성
+      const currentKey = {
+        materialType: newOrder.materialType,
+        shape: newOrder.shape,
+        diameter: newOrder.diameter,
+        width: newOrder.width,
+        height: newOrder.height,
+        plateThickness: newOrder.plateThickness,
+        plateWidth: newOrder.plateWidth,
+        plateLength: newOrder.plateLength,
+        productLength: newOrder.productLength,
+        quantity: newOrder.quantity,
+        totalCost: Math.round(newOrder.totalCost),
+      };
+      
       const existingOrders = JSON.parse(localStorage.getItem("savedOrders") || "[]");
+      
+      // 2. 중복 체크
+      const isDuplicate = existingOrders.some((order: any) => {
+        const orderKey = {
+          materialType: order.materialType,
+          shape: order.shape,
+          diameter: order.diameter,
+          width: order.width,
+          height: order.height,
+          plateThickness: order.plateThickness,
+          plateWidth: order.plateWidth,
+          plateLength: order.plateLength,
+          productLength: order.productLength,
+          quantity: order.quantity,
+          totalCost: Math.round(order.totalCost || 0),
+        };
+        
+        const isMatch = JSON.stringify(currentKey) === JSON.stringify(orderKey);
+        console.log("ResultsPanel 중복 체크:", { currentKey, orderKey, isMatch });
+        return isMatch;
+      });
+
+      if (isDuplicate) {
+        console.log("❌ ResultsPanel에서 중복 발견!");
+        toast.warning("이미 저장된 동일한 주문입니다!", {
+          description: "다른 조건으로 계산하거나 값을 변경해주세요."
+        });
+        return;
+      }
+
+      // 3. Save to localStorage (permanent storage)
       const updatedOrders = [newOrder, ...existingOrders];
       localStorage.setItem("savedOrders", JSON.stringify(updatedOrders));
 
-      // 2. Also save to temporary storage for display in '저장된 주문'
+      // 4. Also save to temporary storage for display in '저장된 주문'
       if (onSaveOrder) {
         onSaveOrder(newOrder);
       }
 
-      // 3. Update product name for next calculation after successful save
+      // 5. Update product name for next calculation after successful save
       if (onProductNameUpdate) {
         onProductNameUpdate();
       }
@@ -273,41 +322,13 @@ export const ResultsPanel = ({
   const materialWeight = results.materialTotalWeight || results.totalWeight; // 호환성을 위해 fallback
   const barWeight = materialWeight / results.totalBarsNeeded; // Weight per bar in kg
 
-  // Calculate individual product weight properly:
-  // If user provided product weight, use it; otherwise calculate from material properties
-  let individualProductWeight = 0; // in grams
-  if (formData?.productWeight && parseFloat(formData.productWeight) > 0) {
-    individualProductWeight = parseFloat(formData.productWeight);
-  } else {
-    // Calculate from material dimensions and density if available
-    const density = parseFloat(formData?.materialDensity || "7.85"); // g/cm³
-    const productLength = parseFloat(formData?.productLength || "0");
-
-    if (formData?.shape && productLength > 0) {
-      let crossSectionalArea = 0; // mm²
-
-      if (formData.shape === "circle" && formData.diameter) {
-        const diameter = parseFloat(formData.diameter);
-        crossSectionalArea = Math.PI * Math.pow(diameter / 2, 2);
-      } else if (formData.shape === "square" && formData.diameter) {
-        const side = parseFloat(formData.diameter);
-        crossSectionalArea = side * side;
-      } else if (formData.shape === "rectangle" && formData.width && formData.height) {
-        const width = parseFloat(formData.width);
-        const height = parseFloat(formData.height);
-        crossSectionalArea = width * height;
-      } else if (formData.shape === "hexagon" && formData.diameter) {
-        const diameter = parseFloat(formData.diameter);
-        crossSectionalArea = ((3 * Math.sqrt(3)) / 2) * Math.pow(diameter / 2, 2);
-      }
-
-      // Volume in mm³ = area × length
-      const volumeMm3 = crossSectionalArea * productLength;
-      // Convert to cm³ and then to grams
-      const volumeCm3 = volumeMm3 / 1000;
-      individualProductWeight = volumeCm3 * density;
-    }
-  }
+  // 계산된 개별 제품 중량 (g) = 제품 총중량(kg) * 1000 / 수량
+  const calculatedIndividualProductWeight = quantity > 0 ? (results.totalWeight * 1000) / quantity : 0;
+  
+  // 사용자가 입력한 실제 제품 중량 또는 계산된 중량 사용
+  const displayProductWeight = formData?.actualProductWeight && parseFloat(formData.actualProductWeight) > 0 
+    ? parseFloat(formData.actualProductWeight) 
+    : calculatedIndividualProductWeight;
 
   // 봉재당 단가는 원재료 기준으로 고정 (스크랩과 무관)
   const pricePerBar = results.materialCost / Math.max(1, results.totalBarsNeeded);
@@ -363,10 +384,14 @@ export const ResultsPanel = ({
             {/* 저장 버튼 우상단 고정 */}
             <Button
               onClick={handleSaveOrder}
-              className="ml-4 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+              disabled={!results || isRecentlySaved}
+              className={cn(
+                "ml-4 bg-blue-600 hover:bg-blue-700 text-white shadow-lg",
+                isRecentlySaved && "opacity-50 cursor-not-allowed"
+              )}
             >
               <Save className="h-4 w-4 mr-2" />
-              💾 저장
+              {isRecentlySaved ? "💾 저장됨" : "💾 저장"}
             </Button>
           </div>
         </CardContent>
@@ -587,11 +612,16 @@ export const ResultsPanel = ({
                     </div>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                    <div className="text-xs text-green-700 mb-1">제품 총중량</div>
-                    <div className="text-sm font-semibold text-green-800">
-                      {formatWeight(results.totalWeight)}
-                    </div>
-                  </div>
+                  <div className="text-xs text-green-700 mb-1">제품 총중량</div>
+                  <div className="text-sm font-semibold text-green-800">
+                  {/* 스크랩 계산 활성화 + 실제 제품 중량 입력 시: 실제 제품 총중량 표시 */}
+                    {formData?.actualProductWeight && parseFloat(formData.actualProductWeight) > 0 && quantity > 0 ? (
+                        formatWeight((parseFloat(formData.actualProductWeight) * quantity) / 1000)
+                  ) : (
+                    formatWeight(results.totalWeight)
+                  )}
+                </div>
+              </div>
                   {materialType === "rod" && (
                     <>
                       <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
@@ -603,7 +633,7 @@ export const ResultsPanel = ({
                       <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                         <div className="text-xs text-blue-700 mb-1">제품 중량</div>
                         <div className="text-sm font-semibold text-blue-800">
-                          {individualProductWeight.toFixed(1)}g
+                          {displayProductWeight.toFixed(1)}g
                         </div>
                       </div>
                     </>

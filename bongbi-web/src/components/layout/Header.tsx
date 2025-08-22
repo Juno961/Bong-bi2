@@ -25,27 +25,27 @@ import { cn } from "@/lib/utils";
 
 const navigationItems = [
   {
-    name: "Dashboard",
+    name: "대시보드",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    name: "Material Calculator",
+    name: "자재 계산기",
     href: "/calculator",
     icon: Calculator,
   },
   {
-    name: "Order History",
+    name: "주문 내역",
     href: "/orders",
     icon: History,
   },
   {
-    name: "Settings",
+    name: "설정",
     href: "/settings",
     icon: Settings,
   },
   {
-    name: "Help & Support",
+    name: "도움말",
     href: "/help",
     icon: HelpCircle,
   },

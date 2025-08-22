@@ -1,5 +1,6 @@
 from typing import Optional, List
-from pydantic import BaseModel, Field, conint, confloat, model_validator
+from pydantic import BaseModel, Field, conint, confloat, model_validator, EmailStr
+from datetime import datetime
 
 
 class RodCalculateRequest(BaseModel):
@@ -102,6 +103,8 @@ class ScrapCalculateResponse(BaseModel):
     scrapSavings: float = Field(..., description="스크랩 회수로 절약된 금액 (₩)")
     realCost: float = Field(..., description="총 재료비에서 스크랩 절감액을 차감한 실제 재료비 (₩)")
     unitCost: float = Field(..., description="제품 1개당 재료 단가 (₩)")
+    updatedTotalWeight: Optional[float] = Field(None, description="업데이트된 제품 총중량 (kg) - actualProductWeight 입력 시")
+    totalActualProductWeight: Optional[float] = Field(None, description="실제 제품 1개 중량 × 수량의 합 (kg)")
     warnings: List[ValidationWarning] = Field(default_factory=list, description="검증 경고 메시지 목록")
 
 
@@ -194,6 +197,31 @@ class ConstraintValidator:
                 suggestion="일반적으로 100% 이하의 값을 사용합니다."
             ))
         return warnings
+
+
+# 노션 연동 관련 스키마
+class CustomerInquiryRequest(BaseModel):
+    """고객 문의 요청 스키마"""
+    name: str = Field(..., min_length=1, max_length=100, description="문의자 이름")
+    email: EmailStr = Field(..., description="문의자 이메일")
+    subject: str = Field(..., min_length=1, max_length=200, description="문의 제목")
+    message: str = Field(..., min_length=1, max_length=2000, description="문의 내용")
+
+
+class CustomerInquiryResponse(BaseModel):
+    """고객 문의 응답 스키마"""
+    success: bool = Field(..., description="저장 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    inquiry_id: Optional[str] = Field(None, description="노션 페이지 ID")
+    timestamp: datetime = Field(..., description="처리 시간")
+
+
+class NotionErrorResponse(BaseModel):
+    """노션 연동 오류 응답"""
+    success: bool = Field(False, description="저장 성공 여부")
+    error: str = Field(..., description="오류 메시지")
+    detail: Optional[str] = Field(None, description="상세 오류 내용")
+    timestamp: datetime = Field(..., description="오류 발생 시간")
     
     @staticmethod
     def validate_non_negative(value: float, field_name: str) -> List[ValidationWarning]:

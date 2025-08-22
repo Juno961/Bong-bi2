@@ -6,6 +6,7 @@ from typing import List, Dict
 def calculate_scrap_metrics(data) -> Dict:
     """
     스크랩 계산 및 단순화된 유효성 검증
+    actualProductWeight 입력 시 totalWeight도 함께 업데이트
     """
     total_weight = parse_float_safe(data.get("totalWeight"))  # kg (제품 총중량)
     total_cost = parse_float_safe(data.get("totalCost"))  # ₩
@@ -14,12 +15,26 @@ def calculate_scrap_metrics(data) -> Dict:
     recovery_ratio = parse_float_safe(data.get("recoveryRatio"))  # %
     scrap_unit_price = parse_float_safe(data.get("scrapUnitPrice"))  # ₩/kg
 
-    # 기본 반환값
+    # actualProductWeight 입력 시 totalWeight 재계산
+    updated_total_weight = total_weight
+    total_actual_product_weight_kg = None
+    
+    if actual_product_weight_g is not None and actual_product_weight_g > 0 and quantity is not None and quantity > 0:
+        # 실제 제품 중량 기준으로 제품 총중량 업데이트
+        total_actual_product_weight_kg = (actual_product_weight_g * quantity) / 1000.0
+        updated_total_weight = total_actual_product_weight_kg
+    elif actual_product_weight_g is None or actual_product_weight_g <= 0:
+        # 기존 totalWeight의 80%를 실제 제품 중량으로 가정
+        total_actual_product_weight_kg = total_weight * 0.8 if total_weight else 0.0
+
+    # 기본 반환값 (업데이트된 totalWeight 포함)
     default_result = {
         "scrapWeight": 0.0,
         "scrapSavings": 0.0,
         "realCost": total_cost,
         "unitCost": (total_cost / quantity) if quantity > 0 else 0.0,
+        "updatedTotalWeight": updated_total_weight,  # 업데이트된 제품 총중량
+        "totalActualProductWeight": total_actual_product_weight_kg,
         "warnings": []
     }
 
@@ -36,14 +51,10 @@ def calculate_scrap_metrics(data) -> Dict:
         default_result["warnings"] = warnings
         return default_result
 
-    # actualProductWeight 처리
-    if actual_product_weight_g is None or actual_product_weight_g <= 0:
-        total_actual_product_weight_kg = total_weight * 0.8  # 80% 가정 (제품 총중량 기준)
-    else:
-        total_actual_product_weight_kg = (actual_product_weight_g * quantity) / 1000.0
-
-    # 스크랩 중량 계산 (제품 총중량 - 실제 제품 총중량)
-    scrap_weight = max(0.0, total_weight - total_actual_product_weight_kg)
+    # 스크랩 중량 계산 (봉재 총중량 - 실제 제품 총중량)
+    # 여기서는 원래 materialTotalWeight를 사용해야 함
+    material_total_weight = parse_float_safe(data.get("materialTotalWeight")) or total_weight
+    scrap_weight = max(0.0, material_total_weight - total_actual_product_weight_kg) if total_actual_product_weight_kg else 0.0
     
     # 스크랩이 없는 경우
     if scrap_weight <= 0:
@@ -66,6 +77,8 @@ def calculate_scrap_metrics(data) -> Dict:
         "scrapSavings": scrap_savings,
         "realCost": real_cost,
         "unitCost": unit_cost,
+        "updatedTotalWeight": updated_total_weight,  # 업데이트된 제품 총중량
+        "totalActualProductWeight": total_actual_product_weight_kg,
         "warnings": warnings
     }
 

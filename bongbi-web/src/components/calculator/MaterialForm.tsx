@@ -153,7 +153,10 @@ export const MaterialForm = ({
         ...prev,
         headCut: e.detail.headCut?.toString() || "20",
         tailCut: e.detail.tailCut?.toString() || "250",
-        recoveryRatio: e.detail.scrapRatio?.toString() || "",
+        // 스크랩이 활성화된 상태에서 기본값 변경 시 즉시 반영
+        recoveryRatio: isScrapCalculationEnabled 
+          ? e.detail.scrapRatio?.toString() || "80"
+          : prev.recoveryRatio,
       }));
     };
 
@@ -183,15 +186,40 @@ export const MaterialForm = ({
     const handleMaterialDefaultsChange = (e: CustomEvent) => {
       // 현재 선택된 재료가 변경된 경우 업데이트
       if (formData.materialType && e.detail[formData.materialType]) {
-        const defaults = e.detail[formData.materialType];
+        const newDefaults = e.detail[formData.materialType];
         setFormData(prev => ({
           ...prev,
-          standardBarLength: defaults.standard_bar_length.toString(),
-          materialDensity: defaults.material_density.toString(),
-          materialPrice: defaults.bar_unit_price.toString(),
-          plateUnitPrice: defaults.plate_unit_price.toString(),
-          scrapPrice: defaults.scrap_unit_price.toString(),
+          standardBarLength: newDefaults.standard_bar_length.toString(),
+          materialDensity: newDefaults.material_density.toString(),
+          materialPrice: newDefaults.bar_unit_price.toString(),
+          plateUnitPrice: newDefaults.plate_unit_price.toString(),
+          scrapPrice: newDefaults.scrap_unit_price.toString(),
         }));
+        
+        // 실시간 재계산 트리거 강화
+        if (autoCalculateEnabled) {
+          const isBasicDataComplete = materialType === "rod" 
+            ? formData.materialType && formData.shape && 
+              ((formData.shape === "rectangle" && formData.width && formData.height) || 
+               (formData.shape !== "rectangle" && formData.diameter)) &&
+              formData.productLength && formData.quantity
+            : formData.materialType && formData.plateThickness && 
+              formData.plateWidth && formData.plateLength && formData.quantity;
+
+          if (isBasicDataComplete) {
+            const calculationData = {
+              ...formData,
+              standardBarLength: newDefaults.standard_bar_length.toString(),
+              materialDensity: newDefaults.material_density.toString(),
+              materialPrice: newDefaults.bar_unit_price.toString(),
+              plateUnitPrice: newDefaults.plate_unit_price.toString(),
+              scrapUnitPrice: newDefaults.scrap_unit_price.toString(),
+              recoveryRatio: isScrapCalculationEnabled && formData.recoveryRatio ? formData.recoveryRatio : undefined,
+              actualProductWeight: isScrapCalculationEnabled && formData.actualProductWeight ? formData.actualProductWeight : undefined,
+            };
+            setTimeout(() => onCalculate(calculationData), 150); // 딜레이 약간 증가
+          }
+        }
       }
     };
 
@@ -200,7 +228,7 @@ export const MaterialForm = ({
     return () => {
       window.removeEventListener("materialDefaultsChanged", handleMaterialDefaultsChange as EventListener);
     };
-  }, [formData.materialType]);
+  }, [formData.materialType, autoCalculateEnabled, isScrapCalculationEnabled, materialType]);
 
   // Generate auto product name based on permanently saved orders count
   const generateProductName = () => {
@@ -1169,7 +1197,27 @@ export const MaterialForm = ({
                   </span>
                   <Switch
                     checked={isScrapCalculationEnabled}
-                    onCheckedChange={handleScrapCalculationToggle}
+                    onCheckedChange={(checked) => {
+                      setIsScrapCalculationEnabled(checked);
+                      if (!checked) {
+                        handleInputChange("recoveryRatio", "");
+                        handleInputChange("actualProductWeight", "");
+                      } else {
+                        // 설정메뉴의 스크랩 기본값 가져오기
+                        const storedDefaults = localStorage.getItem("defaultValues");
+                        if (storedDefaults) {
+                          try {
+                            const defaults = JSON.parse(storedDefaults);
+                            handleInputChange("recoveryRatio", defaults.scrapRatio?.toString() || "80");
+                          } catch (error) {
+                            console.error("Failed to load scrap default:", error);
+                            handleInputChange("recoveryRatio", "80"); // 폴백값
+                          }
+                        } else {
+                          handleInputChange("recoveryRatio", "80"); // 폴백값
+                        }
+                      }
+                    }}
                     className="data-[state=checked]:bg-green-600"
                   />
                 </div>

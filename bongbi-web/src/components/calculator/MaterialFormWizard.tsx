@@ -192,13 +192,59 @@ export const MaterialFormWizard = ({
         ...prev,
         headCut: e.detail.headCut?.toString() || "20",
         tailCut: e.detail.tailCut?.toString() || "250",
-        recoveryRatio: e.detail.scrapRatio?.toString() || "100",
+        // 스크랩이 활성화된 상태에서 기본값 변경 시 즉시 반영
+        recoveryRatio: isScrapCalculationEnabled 
+          ? e.detail.scrapRatio?.toString() || "80"
+          : prev.recoveryRatio,
       }));
     };
 
+    // Handle material defaults changes
+    const handleMaterialDefaultsChange = (e: CustomEvent) => {
+      // If current material type is affected, update form data
+      if (formData.materialType && e.detail[formData.materialType]) {
+        const newDefaults = e.detail[formData.materialType];
+        setFormData(prev => ({
+          ...prev,
+          standardBarLength: newDefaults.standard_bar_length?.toString() || prev.standardBarLength,
+          materialDensity: newDefaults.material_density?.toString() || prev.materialDensity,
+          materialPrice: newDefaults.bar_unit_price?.toString() || prev.materialPrice,
+          plateUnitPrice: newDefaults.plate_unit_price?.toString() || prev.plateUnitPrice,
+          scrapPrice: newDefaults.scrap_unit_price?.toString() || prev.scrapPrice,
+        }));
+        
+        // 실시간 재계산 트리거 강화
+        if (autoCalculateEnabled) {
+          const isBasicDataComplete = materialType === "rod" 
+            ? formData.materialType && formData.shape && 
+              ((formData.shape === "rectangle" && formData.width && formData.height) || 
+               (formData.shape !== "rectangle" && formData.diameter)) &&
+              formData.productLength && formData.quantity
+            : formData.materialType && formData.plateThickness && 
+              formData.plateWidth && formData.plateLength && formData.quantity;
+
+          if (isBasicDataComplete) {
+            const calculationData = {
+              ...formData,
+              ...newDefaults, // 새로운 기본값들 적용
+              scrapUnitPrice: newDefaults.scrap_unit_price?.toString() || formData.scrapPrice,
+              recoveryRatio: isScrapCalculationEnabled && formData.recoveryRatio ? formData.recoveryRatio : undefined,
+              actualProductWeight: isScrapCalculationEnabled && formData.actualProductWeight ? formData.actualProductWeight : undefined,
+            };
+            setTimeout(() => onCalculate(calculationData), 150); // 딜레이 약간 증가
+          }
+        }
+      }
+    };
+
     window.addEventListener("defaultValuesChanged", handleDefaultValuesChange as EventListener);
-    return () => window.removeEventListener("defaultValuesChanged", handleDefaultValuesChange as EventListener);
-  }, []);
+    window.addEventListener("materialDefaultsChanged", handleMaterialDefaultsChange as EventListener);
+    
+    return () => {
+      window.removeEventListener("defaultValuesChanged", handleDefaultValuesChange as EventListener);
+      window.removeEventListener("materialDefaultsChanged", handleMaterialDefaultsChange as EventListener);
+    };
+  }, [formData.materialType]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
@@ -264,7 +310,8 @@ export const MaterialFormWizard = ({
         materialPrice: defaults.bar_unit_price.toString(),
         plateUnitPrice: defaults.plate_unit_price.toString(),
         scrapPrice: defaults.scrap_unit_price.toString(),
-        recoveryRatio: defaults.default_recovery_ratio?.toString() || "100",
+        // 스크랩 환산비율은 설정메뉴 기본값 사용
+        recoveryRatio: prev.recoveryRatio || "80",
       }));
     }
   };
@@ -745,10 +792,19 @@ export const MaterialFormWizard = ({
                     handleInputChange("recoveryRatio", "");
                     handleInputChange("actualProductWeight", "");
                   } else {
-                    // Restore material's default recovery ratio when enabled
-                    const defaults = getMaterialDefaults(formData.materialType);
-                    const defaultRatio = defaults?.default_recovery_ratio?.toString() || "100";
-                    handleInputChange("recoveryRatio", defaultRatio);
+                    // 설정메뉴의 스크랩 기본값 가져오기
+                    const storedDefaults = localStorage.getItem("defaultValues");
+                    if (storedDefaults) {
+                      try {
+                        const defaults = JSON.parse(storedDefaults);
+                        handleInputChange("recoveryRatio", defaults.scrapRatio?.toString() || "80");
+                      } catch (error) {
+                        console.error("Failed to load scrap default:", error);
+                        handleInputChange("recoveryRatio", "80"); // 폴백값
+                      }
+                    } else {
+                      handleInputChange("recoveryRatio", "80"); // 폴백값
+                    }
                   }
                 }}
               />
@@ -787,7 +843,7 @@ export const MaterialFormWizard = ({
                     step="1"
                     className="border-green-300 focus:border-green-500"
                   />
-                  <p className="text-xs text-gray-600">스크랩 회수율 (기본: 100%)</p>
+
                 </div>
                 <div className="col-span-full">
                   <div className="bg-green-100 border border-green-200 rounded-lg p-3">

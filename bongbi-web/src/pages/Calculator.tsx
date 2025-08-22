@@ -78,6 +78,10 @@ const Calculator = () => {
   
   // Onboarding tour state
   const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // 중복 저장 방지를 위한 state 추가
+  const [lastSavedData, setLastSavedData] = useState<string | null>(null);
+  const [isRecentlySaved, setIsRecentlySaved] = useState(false);
 
   useEffect(() => {
     const loadCalculationSettings = () => {
@@ -146,7 +150,34 @@ const Calculator = () => {
 
   // Use dynamic material data from form inputs
 
+  // 데이터 해시 생성 함수 추가
+  const generateDataHash = (formData: MaterialFormData, results: CalculationResults) => {
+    // 중복 체크를 위한 고유 식별자 생성 (제품명 제외 - 자동 생성되므로)
+    const keyData = {
+      materialType: formData.materialType || "",
+      shape: formData.shape || "",
+      diameter: formData.diameter || "",
+      width: formData.width || "",
+      height: formData.height || "",
+      plateThickness: formData.plateThickness || "",
+      plateWidth: formData.plateWidth || "",
+      plateLength: formData.plateLength || "",
+      productLength: formData.productLength || "",
+      quantity: formData.quantity || "",
+      // 계산 결과의 핵심 값들
+      totalCost: Math.round(results.materialCost || 0), // 반올림으로 소수점 오차 방지
+      barsNeeded: results.totalBarsNeeded || 0,
+      utilizationRate: Math.round((results.utilizationRate || 0) * 100) / 100, // 소수점 2자리로 제한
+    };
+    
+    return JSON.stringify(keyData);
+  };
+
   const calculateMaterials = async (data: MaterialFormData) => {
+    // 새로운 계산 시작 시 저장 상태 초기화
+    setLastSavedData(null);
+    setIsRecentlySaved(false);
+    
     setCurrentFormData(data);
 
     // 기본 유효성 검사
@@ -225,14 +256,108 @@ const Calculator = () => {
   };
 
   const handleSaveOrder = (orderData: any) => {
+    if (!results || !currentFormData) {
+      toast.error("저장할 계산 결과가 없습니다.");
+      return;
+    }
+
+    // 중복 체크 - 임시 저장용
+    const currentDataHash = generateDataHash(currentFormData, results);
+    
+    if (lastSavedData === currentDataHash) {
+      toast.warning("이미 저장된 동일한 계산 결과입니다!", {
+        description: "다른 조건으로 계산하거나 값을 변경해주세요."
+      });
+      return;
+    }
+
+    // 최근 저장 체크 (3초 쿨다운)
+    if (isRecentlySaved) {
+      toast.warning("너무 빠르게 저장하고 있습니다!", {
+        description: "잠시 후 다시 시도해주세요."
+      });
+      return;
+    }
+
     if (savedOrdersRef.current) {
       savedOrdersRef.current(orderData);
+      
+      // 저장 성공 시 해시 업데이트 및 쿨다운 설정
+      setLastSavedData(currentDataHash);
+      setIsRecentlySaved(true);
+      
+      // 3초 후 쿨다운 해제
+      setTimeout(() => {
+        setIsRecentlySaved(false);
+      }, 3000);
+      
+      toast.success("계산 결과가 임시 저장되었습니다!");
     }
   };
 
   // Permanent save to OrderHistory (localStorage)
   const handlePermanentSave = () => {
+    console.log("🚀 handlePermanentSave 함수 시작");
+    console.log("results:", !!results, "currentFormData:", !!currentFormData);
+    
     if (!results || !currentFormData) {
+      console.log("❌ 저장할 데이터가 없습니다");
+      toast.error("저장할 계산 결과가 없습니다.");
+      return;
+    }
+
+    // 중복 체크 - 해시 기반으로 간단하게
+    const currentDataHash = generateDataHash(currentFormData, results);
+    const existingOrders = JSON.parse(localStorage.getItem("savedOrders") || "[]");
+    
+    console.log("🔍 중복 체크 시작");
+    console.log("Current hash:", currentDataHash);
+    console.log("Existing orders count:", existingOrders.length);
+    
+    const isDuplicate = existingOrders.some((order: any) => {
+      // 기존 주문을 동일한 형식으로 변환하여 해시 생성
+      const orderFormData = {
+        materialType: order.materialType || "",
+        shape: order.shape || "",
+        diameter: order.diameter || "",
+        width: order.width || "",
+        height: order.height || "",
+        plateThickness: order.plateThickness || "",
+        plateWidth: order.plateWidth || "",
+        plateLength: order.plateLength || "",
+        productLength: order.productLength || "",
+        quantity: order.quantity ? order.quantity.toString() : "",
+      } as MaterialFormData;
+      
+      const orderResults = {
+        materialCost: order.totalCost || 0,
+        totalBarsNeeded: order.barsNeeded || 0,
+        utilizationRate: order.utilizationRate || 0,
+      } as CalculationResults;
+      
+      const existingHash = generateDataHash(orderFormData, orderResults);
+      
+      console.log("Comparing:", {
+        current: currentDataHash,
+        existing: existingHash,
+        match: currentDataHash === existingHash
+      });
+      
+      return currentDataHash === existingHash;
+    });
+
+    if (isDuplicate) {
+      toast.warning("이미 영구 저장된 동일한 주문입니다!", {
+        description: "주문 내역에서 확인할 수 있습니다."
+      });
+      return;
+    }
+
+    // 최근 저장 체크
+    if (isRecentlySaved) {
+      toast.warning("너무 빠르게 저장하고 있습니다!", {
+        description: "잠시 후 다시 시도해주세요."
+      });
       return;
     }
 
@@ -274,11 +399,17 @@ const Calculator = () => {
     };
 
     // Save to localStorage for OrderHistory
-    const existingOrders = JSON.parse(
-      localStorage.getItem("savedOrders") || "[]",
-    );
     const updatedOrders = [newOrder, ...existingOrders];
     localStorage.setItem("savedOrders", JSON.stringify(updatedOrders));
+
+    // 저장 성공 시 해시 업데이트 및 쿨다운 설정
+    setLastSavedData(currentDataHash);
+    setIsRecentlySaved(true);
+    
+    // 3초 후 쿨다운 해제
+    setTimeout(() => {
+      setIsRecentlySaved(false);
+    }, 3000);
 
     // Update product name for next calculation after successful save
     if (productNameUpdateRef.current) {
@@ -467,6 +598,7 @@ const Calculator = () => {
                   productNameUpdateRef.current();
                 }
               }}
+              isRecentlySaved={isRecentlySaved}
             />
           </div>
         </div>

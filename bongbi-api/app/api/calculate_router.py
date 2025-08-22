@@ -80,6 +80,12 @@ async def calculate_rod(request: RodCalculateRequest):
         real_cost = scrap_result.get('realCost', total_cost)
         scrap_warnings = scrap_result.get('warnings', [])
         
+        # 스크랩 계산에서 업데이트된 제품 총중량 적용
+        updated_total_weight = scrap_result.get('updatedTotalWeight')
+        if updated_total_weight is not None:
+            product_total_weight = updated_total_weight
+            data['totalWeight'] = product_total_weight  # 데이터도 업데이트
+        
         # 개당 단가는 항상 원재료 기준(스크랩 미반영)
         unit_cost = calculate_unit_cost(data)
 
@@ -88,14 +94,7 @@ async def calculate_rod(request: RodCalculateRequest):
         
         # 새로운 필드 계산
         is_plate = False
-        total_actual_product_weight = None
-        try:
-            actual_weight_g = data.get('actualProductWeight')
-            quantity = data.get('quantity')
-            if actual_weight_g is not None and quantity is not None:
-                total_actual_product_weight = (float(actual_weight_g) / 1000.0) * float(quantity)
-        except Exception:
-            total_actual_product_weight = None
+        total_actual_product_weight = scrap_result.get('totalActualProductWeight')
 
         response = RodCalculateResponse(
             barsNeeded=bars_needed,
@@ -215,11 +214,17 @@ async def calculate_scrap(request: ScrapCalculateRequest):
         unit_cost = scrap_result.get('unitCost', 0.0)
         warnings = scrap_result.get('warnings', [])
         
+        # 업데이트된 제품 총중량 및 실제 제품 총중량 추가
+        updated_total_weight = scrap_result.get('updatedTotalWeight')
+        total_actual_product_weight = scrap_result.get('totalActualProductWeight')
+        
         response = ScrapCalculateResponse(
             scrapWeight=scrap_weight,
             scrapSavings=scrap_savings,
             realCost=real_cost,
             unitCost=unit_cost,
+            updatedTotalWeight=updated_total_weight,  # 업데이트된 제품 총중량
+            totalActualProductWeight=total_actual_product_weight,  # 실제 제품 총중량
             warnings=warnings
         )
         

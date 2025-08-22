@@ -101,9 +101,10 @@ interface MaterialCardProps {
   material: EditableMaterial;
   onEdit: () => void;
   onDelete: () => void;
+  calculationSettings: any;
 }
 
-const MaterialCard = ({ material, onEdit, onDelete }: MaterialCardProps) => (
+const MaterialCard = ({ material, onEdit, onDelete, calculationSettings }: MaterialCardProps) => (
   <Card className="hover:shadow-md transition-shadow">
     <CardHeader>
       <div className="flex justify-between items-start">
@@ -134,9 +135,17 @@ const MaterialCard = ({ material, onEdit, onDelete }: MaterialCardProps) => (
           <span className="text-gray-600">봉재 단가:</span>
           <span className="font-medium">{material.bar_unit_price.toLocaleString()}원/kg</span>
         </div>
+        {/* 판재 단가 활성화 설정에 따라 조건부 표시 */}
+        {calculationSettings.enablePlatePrice && (
+          <div className="flex justify-between">
+            <span className="text-gray-600">판재 단가:</span>
+            <span className="font-medium">{material.plate_unit_price.toLocaleString()}원/kg</span>
+          </div>
+        )}
+        {/* 스크랩 단가 표시 추가 */}
         <div className="flex justify-between">
-          <span className="text-gray-600">환산비율:</span>
-          <span className="font-medium">{material.default_recovery_ratio}%</span>
+          <span className="text-gray-600">스크랩 단가:</span>
+          <span className="font-medium">{material.scrap_unit_price.toLocaleString()}원/kg</span>
         </div>
       </div>
     </CardContent>
@@ -184,7 +193,7 @@ const Settings = () => {
   const [calculationSettings, setCalculationSettings] = useState({
     autoCalculate: true,
     saveHistory: true,
-    disablePlatePrice: false,
+    enablePlatePrice: false, // 변경: false = 비활성화됨 (기본값)
   });
 
   // Load calculation settings from localStorage on mount
@@ -193,6 +202,13 @@ const Settings = () => {
     if (storedSettings) {
       try {
         const settings = JSON.parse(storedSettings);
+        // 기존 disablePlatePrice를 enablePlatePrice로 변환
+        if (settings.hasOwnProperty('disablePlatePrice')) {
+          settings.enablePlatePrice = !settings.disablePlatePrice;
+          delete settings.disablePlatePrice;
+          // 변환된 설정을 localStorage에 저장
+          localStorage.setItem("calculationSettings", JSON.stringify(settings));
+        }
         setCalculationSettings(settings);
       } catch (error) {
         console.error("Failed to load calculation settings:", error);
@@ -252,7 +268,6 @@ const Settings = () => {
       bar_unit_price: 0,
       plate_unit_price: 0,
       scrap_unit_price: 0,
-      default_recovery_ratio: 100,
       isNew: true,
     };
     const updatedMaterials = [...materials, newMaterial];
@@ -334,7 +349,7 @@ const Settings = () => {
         const defaultCalculationSettings = {
           autoCalculate: true,
           saveHistory: true,
-          disablePlatePrice: false,
+          enablePlatePrice: false, // 기본값: 비활성화
         };
         setCalculationSettings(defaultCalculationSettings);
         
@@ -389,7 +404,6 @@ const Settings = () => {
       updateMaterial(editingMaterial.id, "bar_unit_price", editingMaterial.bar_unit_price);
       updateMaterial(editingMaterial.id, "plate_unit_price", editingMaterial.plate_unit_price);
       updateMaterial(editingMaterial.id, "scrap_unit_price", editingMaterial.scrap_unit_price);
-      updateMaterial(editingMaterial.id, "default_recovery_ratio", editingMaterial.default_recovery_ratio);
       
       toast.success("소재가 성공적으로 저장되었습니다.");
       setIsEditModalOpen(false);
@@ -552,11 +566,11 @@ const Settings = () => {
         />
         
         <SettingToggle
-          icon={<X className="h-5 w-5" />}
-          title="판재 단가 비활성화"
-          description="활성화 시 플레이트 계산에 봉재 가격을 사용합니다"
-          checked={calculationSettings.disablePlatePrice}
-          onToggle={(checked) => updateCalculationSetting('disablePlatePrice', checked)}
+          icon={<Calculator className="h-5 w-5" />}
+          title="판재 단가 활성화"
+          description="활성화 시 판재 전용 단가를 사용하고, 비활성화 시 봉재 단가를 사용합니다"
+          checked={calculationSettings.enablePlatePrice}
+          onToggle={(checked) => updateCalculationSetting('enablePlatePrice', checked)}
         />
       </CardContent>
     </Card>
@@ -584,6 +598,7 @@ const Settings = () => {
             material={material}
             onEdit={() => handleEditMaterial(material)}
             onDelete={() => handleDeleteMaterial(material.id)}
+            calculationSettings={calculationSettings}
           />
         ))}
       </div>
@@ -768,17 +783,29 @@ const Settings = () => {
                         })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>판재 단가 (원/kg)</Label>
-                      <Input
-                        type="number"
-                        value={editingMaterial.plate_unit_price}
-                        onChange={(e) => setEditingMaterial({
-                          ...editingMaterial,
-                          plate_unit_price: parseInt(e.target.value) || 0
-                        })}
-                      />
-                    </div>
+                    {/* 판재 단가 활성화 설정에 따라 조건부 렌더링 */}
+                    {calculationSettings.enablePlatePrice ? (
+                      <div className="space-y-2">
+                        <Label>판재 단가 (원/kg)</Label>
+                        <Input
+                          type="number"
+                          value={editingMaterial.plate_unit_price}
+                          onChange={(e) => setEditingMaterial({
+                            ...editingMaterial,
+                            plate_unit_price: parseInt(e.target.value) || 0
+                          })}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-gray-500">판재 단가 (비활성화됨)</Label>
+                        <div className="p-3 bg-gray-50 border rounded-md">
+                          <p className="text-sm text-gray-600">
+                            설정 &gt; 계산에서 "판재 단가 활성화"를 켜면 판재 전용 단가를 설정할 수 있습니다. 현재는 봉재 단가를 사용합니다.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label>스크랩 단가 (원/kg)</Label>
                       <Input
@@ -788,19 +815,6 @@ const Settings = () => {
                           ...editingMaterial,
                           scrap_unit_price: parseInt(e.target.value) || 0
                         })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>환산비율 (%)</Label>
-                      <Input
-                        type="number"
-                        value={editingMaterial.default_recovery_ratio}
-                        onChange={(e) => setEditingMaterial({
-                          ...editingMaterial,
-                          default_recovery_ratio: parseInt(e.target.value) || 100
-                        })}
-                        min="0"
-                        max="100"
                       />
                     </div>
                   </div>

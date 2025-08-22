@@ -72,14 +72,36 @@ def calculate_material_total_weight(data):
 # 4. 제품 총 중량 계산 (컬럼마스터: totalWeight)
 def calculate_product_total_weight(data):
     quantity = parse_float_safe(data.get('quantity'))
-    product_weight_g = parse_float_safe(data.get('productWeight'))  # g 단위
+    product_weight_g = parse_float_safe(data.get('productWeight'))  # g 단위 (선택사항)
     
     # 입력값 유효성 검증
-    if quantity <= 0 or product_weight_g <= 0:
+    if quantity <= 0:
         return 0.0
     
+    # productWeight가 제공된 경우 사용
+    if product_weight_g is not None and product_weight_g > 0:
+        # 제품 총 중량 계산 (g → kg 변환)
+        total_product_weight_kg = (quantity * product_weight_g) / 1000.0
+        return total_product_weight_kg if total_product_weight_kg > 0 else 0.0
+    
+    # productWeight가 없으면 치수로부터 계산
+    area = calculate_cross_sectional_area(data)
+    product_length = parse_float_safe(data.get('productLength'))
+    material_density_kg_per_m3 = parse_float_safe(data.get('materialDensity'))
+    
+    if area <= 0 or product_length <= 0 or material_density_kg_per_m3 <= 0:
+        return 0.0
+    
+    # 컬럼마스터 단위 정책: kg/m³ → g/cm³ 변환
+    material_density = kg_per_m3_to_g_per_cm3(material_density_kg_per_m3)
+    
+    # 개별 제품 중량 계산 (g)
+    volume_mm3 = area * product_length  # mm³
+    volume_cm3 = volume_mm3 / 1000.0
+    individual_product_weight_g = volume_cm3 * material_density  # g
+    
     # 제품 총 중량 계산 (g → kg 변환)
-    total_product_weight_kg = (quantity * product_weight_g) / 1000.0
+    total_product_weight_kg = (quantity * individual_product_weight_g) / 1000.0
     
     return total_product_weight_kg if total_product_weight_kg > 0 else 0.0
 
